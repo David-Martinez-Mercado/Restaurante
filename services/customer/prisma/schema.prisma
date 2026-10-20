@@ -1,0 +1,43 @@
+// Customer Service — esquema "customer_service": perfil del cliente en línea,
+// sus datos fiscales (para una futura factura) y su vínculo con Telegram.
+// userId es una referencia lógica a la cuenta del User Service (sin FK).
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+  output          = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["customer_service"]
+}
+
+model Customer {
+  id                String    @id @default(uuid())
+  userId            String    @unique @map("user_id")
+  fullName          String    @map("full_name")
+  phone             String
+
+  /// Chat de Telegram al que se le avisa. Un chat pertenece a un solo cliente.
+  telegramChatId    String?   @unique @map("telegram_chat_id")
+  telegramUsername  String?   @map("telegram_username")
+  /// Código temporal que el cliente manda al bot (/start CODIGO) para vincularse.
+  linkCode          String?   @unique @map("link_code")
+  linkCodeExpiresAt DateTime? @map("link_code_expires_at")
+
+  /// Datos fiscales: o están todos o ninguno.
+  billingRfc          String? @map("billing_rfc")
+  billingBusinessName String? @map("billing_business_name")
+  billingPostalCode   String? @map("billing_postal_code")
+  billingTaxRegime    String? @map("billing_tax_regime")
+  billingCfdiUse      String? @map("billing_cfdi_use")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([fullName])
+  @@map("customers")
+  @@schema("customer_service")
+}

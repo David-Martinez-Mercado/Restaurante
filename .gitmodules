@@ -1,0 +1,3 @@
+[submodule "integraciones/SistemaNomina"]
+	path = integraciones/SistemaNomina
+	url = https://github.com/EmilianoNajeraCervantes/SistemaNomina.git

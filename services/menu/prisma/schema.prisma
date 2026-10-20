@@ -1,0 +1,59 @@
+// Menu Service — esquema "menu_service" dentro de la base de datos compartida.
+// El cliente se genera en src/generated para no pisar el de otros servicios.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+  output          = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["menu_service"]
+}
+
+enum DishCategory {
+  starter
+  main
+  dessert
+  drink
+  side
+
+  @@schema("menu_service")
+}
+
+enum TableStatus {
+  free
+  occupied
+  reserved
+
+  @@schema("menu_service")
+}
+
+model Dish {
+  id          String       @id @default(uuid())
+  name        String       @unique
+  description String?
+  priceCents  Int          @map("price_cents")
+  category    DishCategory
+  available   Boolean      @default(true)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  @@index([category])
+  @@map("dishes")
+  @@schema("menu_service")
+}
+
+model DiningTable {
+  id        String      @id @default(uuid())
+  number    Int         @unique
+  capacity  Int
+  status    TableStatus @default(free)
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  @@map("dining_tables")
+  @@schema("menu_service")
+}

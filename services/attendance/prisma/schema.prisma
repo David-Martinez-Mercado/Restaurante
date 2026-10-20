@@ -1,0 +1,44 @@
+// Attendance Service (checador) — esquema "attendance_service".
+// userId es una referencia lógica a la cuenta del User Service (sin FK).
+// Cada fila es una jornada: una entrada y, cuando se cierra, una salida.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+  output          = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["attendance_service"]
+}
+
+enum AttendanceSource {
+  /// El propio trabajador checó.
+  self
+  /// El gerente la capturó o corrigió (siempre con motivo).
+  manual
+
+  @@schema("attendance_service")
+}
+
+model AttendanceRecord {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  username  String
+  clockIn   DateTime         @map("clock_in")
+  /// null = la jornada sigue abierta.
+  clockOut  DateTime?        @map("clock_out")
+  source    AttendanceSource @default(self)
+  note      String?
+  createdBy String           @map("created_by")
+  updatedBy String?          @map("updated_by")
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  @@index([userId, clockIn])
+  @@index([clockIn])
+  @@map("attendance_records")
+  @@schema("attendance_service")
+}

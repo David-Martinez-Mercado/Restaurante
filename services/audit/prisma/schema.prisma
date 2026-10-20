@@ -1,0 +1,47 @@
+// Audit Service (ACCOUNTING) — esquema "audit_service".
+// Bitácora append-only: el servicio nunca actualiza ni borra registros.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+  output          = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["audit_service"]
+}
+
+enum AuditOutcome {
+  success
+  failure
+  denied
+
+  @@schema("audit_service")
+}
+
+model AuditLog {
+  id         String       @id @default(uuid())
+  occurredAt DateTime     @default(now()) @map("occurred_at")
+  service    String
+  action     String
+  resource   String
+  resourceId String?      @map("resource_id")
+  outcome    AuditOutcome
+  statusCode Int?         @map("status_code")
+  userId     String?      @map("user_id")
+  username   String?
+  role       String?
+  method     String?
+  path       String?
+  ip         String?
+  requestId  String?      @map("request_id")
+  metadata   Json?
+
+  @@index([occurredAt])
+  @@index([userId])
+  @@index([action])
+  @@map("audit_logs")
+  @@schema("audit_service")
+}

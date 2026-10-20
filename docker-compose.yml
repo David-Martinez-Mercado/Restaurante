@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: restaurante-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: restaurante
+      POSTGRES_PASSWORD: restaurante
+      POSTGRES_DB: restaurante
+    ports:
+      # Puerto del host configurable (POSTGRES_PORT) por si ya hay un Postgres local en 5432.
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U restaurante"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # RabbitMQ y Redis se incorporan en fases posteriores (Order/Kitchen/Cache).
+  # Se dejan fuera por ahora para mantener el arranque del login mínimo.
+
+volumes:
+  postgres_data:

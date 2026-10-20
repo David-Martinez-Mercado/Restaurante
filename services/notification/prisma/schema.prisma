@@ -1,0 +1,54 @@
+// Notification Service — esquema "notification_service": bitácora de avisos.
+// Cada fila es UN aviso por UN canal; la fila "in_app" es la que ve el cliente
+// en su campana, y la de "telegram" deja constancia de si el mensaje salió.
+// recipientUserId es una referencia lógica a la cuenta del User Service (sin FK).
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+  output          = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["notification_service"]
+}
+
+enum NotificationChannel {
+  in_app
+  telegram
+
+  @@schema("notification_service")
+}
+
+enum DeliveryStatus {
+  sent
+  simulated
+  failed
+  skipped
+
+  @@schema("notification_service")
+}
+
+model Notification {
+  id              String              @id @default(uuid())
+  /// Tipo del evento de dominio (order.ready, reservation.reminder, ...).
+  type            String
+  channel         NotificationChannel
+  delivery        DeliveryStatus
+  title           String
+  body            String
+  recipientUserId String?             @map("recipient_user_id")
+  recipientChatId String?             @map("recipient_chat_id")
+  /// tipo:entidad:canal — evita avisar dos veces lo mismo por el mismo canal.
+  dedupeKey       String              @unique @map("dedupe_key")
+  error           String?
+  readAt          DateTime?           @map("read_at")
+  createdAt       DateTime            @default(now()) @map("created_at")
+
+  @@index([recipientUserId, channel, createdAt])
+  @@index([createdAt])
+  @@map("notifications")
+  @@schema("notification_service")
+}

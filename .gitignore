@@ -1,0 +1,26 @@
+# Dependencias y compilados
+node_modules/
+dist/
+**/src/generated/
+*.tsbuildinfo
+.vite/
+coverage/
+
+# Secretos y configuración local: cada quien genera la suya con `npm run setup` (se parte de .env.example)
+.env
+.env.*
+!.env.example
+
+# Bases de datos locales (SQLite del motor de nómina externo) y bitácoras
+*.db
+*.db-journal
+*.log
+
+# Sistema y editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Configuracion local de herramientas (no es parte del proyecto)
+.claude/

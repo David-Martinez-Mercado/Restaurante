@@ -1,0 +1,62 @@
+{
+  "name": "restaurante-monorepo",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Asador La Brasa - Sistema de gestión de restaurante (microservicios REST + gateway NestJS + React)",
+  "workspaces": [
+    "packages/*",
+    "services/*",
+    "gateway",
+    "web"
+  ],
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "setup:all": "npm run setup && npm run setup:nomina && npm run db:up && npm run prisma:generate && npm run db:push",
+    "db:up": "docker compose up -d --wait postgres",
+    "db:down": "docker compose down",
+    "db:push": "npm run db:push --workspaces --if-present",
+    "prisma:generate": "npm run prisma:generate --workspaces --if-present",
+    "start": "node scripts/start-all.mjs",
+    "start:backend": "node scripts/start-all.mjs --no-web",
+    "start:parallel": "concurrently -k -n gateway,user,menu,order,audit,customer,reservation,notification,payment,attendance,payroll,nomina,web -c cyan,green,yellow,magenta,blue,white,gray,greenBright,yellowBright,cyanBright,magentaBright,redBright,red \"npm:serve:gateway\" \"npm:serve:user\" \"npm:serve:menu\" \"npm:serve:order\" \"npm:serve:audit\" \"npm:serve:customer\" \"npm:serve:reservation\" \"npm:serve:notification\" \"npm:serve:payment\" \"npm:serve:attendance\" \"npm:serve:payroll\" \"npm:nomina\" \"npm:serve:web\"",
+    "dev": "concurrently -k -n gateway,user,menu,order,audit,customer,reservation,notification,payment,attendance,payroll,nomina,web -c cyan,green,yellow,magenta,blue,white,gray,greenBright,yellowBright,cyanBright,magentaBright,redBright,red \"npm:dev:gateway\" \"npm:dev:user\" \"npm:dev:menu\" \"npm:dev:order\" \"npm:dev:audit\" \"npm:dev:customer\" \"npm:dev:reservation\" \"npm:dev:notification\" \"npm:dev:payment\" \"npm:dev:attendance\" \"npm:dev:payroll\" \"npm:nomina\" \"npm:dev:web\"",
+    "seed": "node scripts/seed.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "prisma:generate:user": "npm run prisma:generate --workspace=@resto/user-service",
+    "prisma:migrate:user": "npm run prisma:migrate --workspace=@resto/user-service",
+    "serve:gateway": "npm run serve --workspace=@resto/gateway",
+    "serve:user": "npm run serve --workspace=@resto/user-service",
+    "serve:menu": "npm run serve --workspace=@resto/menu-service",
+    "serve:order": "npm run serve --workspace=@resto/order-service",
+    "serve:audit": "npm run serve --workspace=@resto/audit-service",
+    "serve:web": "npm run serve --workspace=@resto/web",
+    "dev:gateway": "npm run dev --workspace=@resto/gateway",
+    "dev:user": "npm run dev --workspace=@resto/user-service",
+    "dev:menu": "npm run dev --workspace=@resto/menu-service",
+    "dev:order": "npm run dev --workspace=@resto/order-service",
+    "dev:audit": "npm run dev --workspace=@resto/audit-service",
+    "dev:web": "npm run dev --workspace=@resto/web",
+    "serve:customer": "npm run serve --workspace=@resto/customer-service",
+    "dev:customer": "npm run dev --workspace=@resto/customer-service",
+    "serve:reservation": "npm run serve --workspace=@resto/reservation-service",
+    "dev:reservation": "npm run dev --workspace=@resto/reservation-service",
+    "serve:notification": "npm run serve --workspace=@resto/notification-service",
+    "dev:notification": "npm run dev --workspace=@resto/notification-service",
+    "serve:payment": "npm run serve --workspace=@resto/payment-service",
+    "dev:payment": "npm run dev --workspace=@resto/payment-service",
+    "serve:attendance": "npm run serve --workspace=@resto/attendance-service",
+    "dev:attendance": "npm run dev --workspace=@resto/attendance-service",
+    "serve:payroll": "npm run serve --workspace=@resto/payroll-service",
+    "dev:payroll": "npm run dev --workspace=@resto/payroll-service",
+    "setup:nomina": "node scripts/nomina-externo-setup.mjs",
+    "nomina": "node integraciones/nomina-externo.cjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

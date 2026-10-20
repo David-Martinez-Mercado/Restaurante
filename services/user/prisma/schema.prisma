@@ -1,0 +1,63 @@
+// User Service — esquema "user" dentro de la base de datos compartida.
+// Entidad "User" según Especificacion_Tecnica_Exhaustiva.docx, sección 6.1.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["user_service"]
+}
+
+enum Role {
+  admin
+  manager
+  waiter
+  cook
+  cashier
+  customer
+
+  @@schema("user_service")
+}
+
+enum UserStatus {
+  active
+  inactive
+
+  @@schema("user_service")
+}
+
+model User {
+  id           String     @id @default(uuid())
+  username     String     @unique
+  email        String     @unique
+  passwordHash String     @map("password_hash")
+  role         Role       @default(customer)
+  status       UserStatus @default(active)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+  @@schema("user_service")
+}
+
+/// Tokens de refresco emitidos, para poder revocarlos (logout) y
+/// detectar reutilización de tokens robados (rotación).
+model RefreshToken {
+  id        String    @id @default(uuid())
+  jti       String    @unique
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  revokedAt DateTime? @map("revoked_at")
+  expiresAt DateTime  @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("refresh_tokens")
+  @@schema("user_service")
+}

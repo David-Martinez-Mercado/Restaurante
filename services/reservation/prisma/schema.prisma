@@ -1,0 +1,66 @@
+// Reservation Service — esquema "reservation_service".
+// customerUserId/tableId son referencias lógicas (sin FK): cada servicio es dueño de sus datos.
+// El nombre y el teléfono se guardan como copia para no depender del Customer Service al listar.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+  output          = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["reservation_service"]
+}
+
+enum ReservationStatus {
+  confirmed
+  arrived
+  completed
+  cancelled
+  no_show
+
+  @@schema("reservation_service")
+}
+
+/// Por dónde se hizo: portal web del cliente, bot de Telegram o el personal.
+enum ReservationSource {
+  web
+  telegram
+  staff
+
+  @@schema("reservation_service")
+}
+
+model Reservation {
+  id             String            @id @default(uuid())
+  /// Localizador de 6 caracteres que el cliente da al llegar.
+  code           String            @unique
+  customerUserId String?           @map("customer_user_id")
+  customerName   String            @map("customer_name")
+  phone          String?
+  /// Chat de Telegram desde el que se reservó (o al que se le avisa).
+  telegramChatId String?           @map("telegram_chat_id")
+  partySize      Int               @map("party_size")
+  /// HORA DE LLEGADA prevista.
+  reservedFor    DateTime          @map("reserved_for")
+  status         ReservationStatus @default(confirmed)
+  source         ReservationSource
+  tableId        String?           @map("table_id")
+  tableNumber    Int?              @map("table_number")
+  notes          String?
+  /// Hora en que el cliente realmente llegó (la marca el personal).
+  arrivedAt      DateTime?         @map("arrived_at")
+  /// Se llena al enviar el aviso de "ya casi es la hora"; evita enviarlo dos veces.
+  reminderSentAt DateTime?         @map("reminder_sent_at")
+  createdBy      String?           @map("created_by")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  @@index([reservedFor, status])
+  @@index([customerUserId])
+  @@index([telegramChatId])
+  @@map("reservations")
+  @@schema("reservation_service")
+}

@@ -1,0 +1,61 @@
+// Payment Service — esquema "payment_service": cobros en línea.
+// orderId y customerUserId son referencias lógicas a otros servicios (sin FK).
+// Este servicio NO procesa tarjetas: solo registra el cobro, lo pide a la pasarela
+// externa y recibe su confirmación firmada.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+  output          = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["payment_service"]
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  failed
+  expired
+
+  @@schema("payment_service")
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  orderId         String        @map("order_id")
+  orderCode       String        @map("order_code")
+  customerUserId  String        @map("customer_user_id")
+  amountCents     Int           @map("amount_cents")
+  status          PaymentStatus @default(pending)
+  /// card | spei | oxxo | wallet — lo informa la pasarela al confirmar.
+  method          String?
+  gatewayReference String?      @map("gateway_reference")
+  checkoutUrl     String?       @map("checkout_url")
+  expiresAt       DateTime?     @map("expires_at")
+  failureReason   String?       @map("failure_reason")
+  paidAt          DateTime?     @map("paid_at")
+  /// Cuerpo que se envía (o se enviaría) a la pasarela: sirve para integrarla y para auditar.
+  requestSnapshot Json?         @map("request_snapshot")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@index([orderId, status])
+  @@index([customerUserId, createdAt])
+  @@map("payments")
+  @@schema("payment_service")
+}
+
+/// Avisos de la pasarela ya procesados: un mismo eventId nunca se aplica dos veces.
+model WebhookEvent {
+  eventId    String   @id @map("event_id")
+  paymentId  String   @map("payment_id")
+  type       String
+  receivedAt DateTime @default(now()) @map("received_at")
+
+  @@map("webhook_events")
+  @@schema("payment_service")
+}

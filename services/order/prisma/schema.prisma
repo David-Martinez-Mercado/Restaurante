@@ -1,0 +1,87 @@
+// Order Service — esquema "order_service" dentro de la base de datos compartida.
+// No hay llaves foráneas hacia otros servicios: tableId/dishId/waiterId/customerUserId
+// son referencias lógicas (cada servicio es dueño de sus datos).
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+  output          = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["order_service"]
+}
+
+enum OrderStatus {
+  pending
+  preparing
+  ready
+  served
+  paid
+  cancelled
+
+  @@schema("order_service")
+}
+
+/// dine_in = pedido en mesa (lo toma el personal); pickup = pedido en línea para recoger.
+enum OrderChannel {
+  dine_in
+  pickup
+
+  @@schema("order_service")
+}
+
+enum PaymentMethod {
+  cash
+  card
+  online
+
+  @@schema("order_service")
+}
+
+model Order {
+  id             String        @id @default(uuid())
+  /// null en pedidos en línea para recoger.
+  tableId        String?       @map("table_id")
+  waiterId       String?       @map("waiter_id")
+  channel        OrderChannel  @default(dine_in)
+  /// Cuenta del cliente: permite que cada cliente vea solo SUS pedidos y recibir sus avisos.
+  customerUserId String?       @map("customer_user_id")
+  customerName   String?       @map("customer_name")
+  status         OrderStatus   @default(pending)
+  notes          String?
+  subtotalCents  Int           @map("subtotal_cents")
+  taxCents       Int           @map("tax_cents")
+  totalCents     Int           @map("total_cents")
+  paymentMethod  PaymentMethod? @map("payment_method")
+  /// Cuándo se confirmó el pago. En pedidos en línea puede ser antes de servir.
+  paidAt         DateTime?     @map("paid_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  items OrderItem[]
+
+  @@index([tableId, status])
+  @@index([status])
+  @@index([customerUserId])
+  @@map("orders")
+  @@schema("order_service")
+}
+
+/// Copia (snapshot) del nombre y precio al momento de ordenar: cambios
+/// posteriores en el menú no alteran pedidos ya hechos.
+model OrderItem {
+  id             String @id @default(uuid())
+  orderId        String @map("order_id")
+  order          Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  dishId         String @map("dish_id")
+  dishName       String @map("dish_name")
+  unitPriceCents Int    @map("unit_price_cents")
+  quantity       Int
+
+  @@index([orderId])
+  @@map("order_items")
+  @@schema("order_service")
+}

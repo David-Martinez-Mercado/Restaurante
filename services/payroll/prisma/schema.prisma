@@ -1,0 +1,100 @@
+// Payroll Service (nómina) — esquema "payroll_service".
+// Guarda el sueldo de cada trabajador y las nóminas calculadas. El CÁLCULO de impuestos
+// (ISR, IMSS, Infonavit, subsidio) lo hace el motor externo SistemaNomina; aquí solo se
+// conservan sus resultados para poder consultarlos (el motor original no los puede leer después).
+// userId es una referencia lógica a la cuenta del User Service (sin FK).
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+  output          = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["payroll_service"]
+}
+
+enum PayrollRunStatus {
+  calculated
+  approved
+
+  @@schema("payroll_service")
+}
+
+model Compensation {
+  userId             String   @id @map("user_id")
+  fullName           String   @map("full_name")
+  position           String
+  /// Sueldo mensual bruto en centavos.
+  monthlySalaryCents Int      @map("monthly_salary_cents")
+  /// AAAA-MM-DD: desde cuándo cuentan las faltas.
+  hireDate           String   @map("hire_date")
+  active             Boolean  @default(true)
+  /// Id del trabajador en el motor externo y el sueldo con el que se dio de alta ahí.
+  /// El motor original no permite editar empleados: si cambia el sueldo se da de alta uno nuevo.
+  externalEmployeeId Int?     @map("external_employee_id")
+  externalSalaryCents Int?    @map("external_salary_cents")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@map("compensations")
+  @@schema("payroll_service")
+}
+
+model PayrollRun {
+  id          String           @id @default(uuid())
+  /// AAAA-MM. Una sola nómina por periodo; recalcular la reemplaza mientras no esté aprobada.
+  period      String           @unique
+  status      PayrollRunStatus @default(calculated)
+  generatedBy String           @map("generated_by")
+  approvedBy  String?          @map("approved_by")
+  approvedAt  DateTime?        @map("approved_at")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  lines       PayrollLine[]
+
+  @@map("payroll_runs")
+  @@schema("payroll_service")
+}
+
+model PayrollLine {
+  id                    String     @id @default(uuid())
+  runId                 String     @map("run_id")
+  run                   PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  userId                String     @map("user_id")
+  fullName              String     @map("full_name")
+  position              String
+  baseSalaryCents       Int        @map("base_salary_cents")
+  hoursWorked           Float      @map("hours_worked")
+  overtimeHours         Float      @map("overtime_hours")
+  overtimePayCents      Int        @map("overtime_pay_cents")
+  absenceDays           Int        @map("absence_days")
+  absenceDeductionCents Int        @map("absence_deduction_cents")
+  taxableCents          Int        @map("taxable_cents")
+  isrCents              Int        @map("isr_cents")
+  imssCents             Int        @map("imss_cents")
+  infonavitCents        Int        @map("infonavit_cents")
+  subsidioCents         Int        @map("subsidio_cents")
+  netPayCents           Int        @map("net_pay_cents")
+
+  @@unique([runId, userId])
+  @@index([userId])
+  @@map("payroll_lines")
+  @@schema("payroll_service")
+}
+
+/// Incidencias que este servicio mandó al motor externo, para poder reemplazarlas al recalcular.
+model ExternalIncident {
+  id         String @id @default(uuid())
+  period     String
+  userId     String @map("user_id")
+  /// OVERTIME | ABSENCE
+  kind       String
+  externalId Int    @map("external_id")
+
+  @@index([period, userId])
+  @@map("external_incidents")
+  @@schema("payroll_service")
+}
