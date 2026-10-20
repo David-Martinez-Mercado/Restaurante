@@ -221,7 +221,67 @@ for (const s of STAFF) {
   }
   console.log(`  + ${s.username}: ${created} jornadas`);
 }
-console.log(`  (el mesero tiene 1 falta y el cocinero 9 h extra: calcula la nómina de ${prevPeriod} en la pestaña Nómina)`);
+console.log(`  (el mesero tiene 1 falta y el cocinero horas extra: calcula la nómina de ${prevPeriod} en la pestaña Nómina)`);
+
+// Mes en curso: jornadas de lunes a sábado desde el día 1 hasta AYER (hoy queda libre para probar el checador).
+const now = new Date();
+const curPeriod = `${now.getFullYear()}-${pad(now.getMonth() + 1)}`;
+console.log(`\nAsistencia del mes en curso (${curPeriod}, hasta ayer):`);
+if (now.getDate() === 1) {
+  console.log("  = hoy es día 1: aún no hay días anteriores que registrar");
+} else {
+  const curStart = `${curPeriod}-01`;
+  const curEnd = `${curPeriod}-${pad(now.getDate() - 1)}`;
+  for (const s of STAFF) {
+    const existing = (await call("GET", `/api/v1/attendance?from=${curStart}&to=${curEnd}&userId=${s.account.id}`, { token: manager })).json?.data ?? [];
+    if (existing.length > 0) {
+      console.log(`  = ${s.username}: ya tiene ${existing.length} jornadas`);
+      continue;
+    }
+    let created = 0;
+    for (let day = 1; day < now.getDate(); day++) {
+      if (new Date(now.getFullYear(), now.getMonth(), day).getDay() === 0) continue; // domingo
+      const at = (h) => new Date(now.getFullYear(), now.getMonth(), day, h, 0, 0).toISOString();
+      const r = await call("POST", "/api/v1/attendance/manual", {
+        token: manager,
+        body: { userId: s.account.id, username: s.username, clockIn: at(9), clockOut: at(17), note: "Datos de demostración" },
+      });
+      if (r.status === 201) created++;
+    }
+    console.log(`  + ${s.username}: ${created} jornadas`);
+  }
+}
+
+// ---------------------------------------------------------------- ventas pagadas (para el reporte de IVA)
+
+console.log("\nVentas pagadas de ejemplo (reporte de IVA):");
+const paidAlready = (await call("GET", "/api/v1/orders?status=paid", { token: admin })).json?.data ?? [];
+if (paidAlready.length >= 4) {
+  console.log(`  = ya hay ${paidAlready.length} pedidos pagados`);
+} else {
+  const menu = (await call("GET", "/api/v1/dishes?available=true", { token: admin })).json.data;
+  const free = (await call("GET", "/api/v1/tables?status=free", { token: admin })).json.data;
+  const cook = cookAccount.token;
+  const cashier = cashierAccount.token;
+  const pick = (i) => [0, 1, 2].map((k) => ({ dishId: menu[(i * 3 + k) % menu.length].id, quantity: 1 + ((i + k) % 3) }));
+  let made = 0;
+  if (free.length === 0 || menu.length === 0) {
+    console.log("  ! no hay mesas libres o platillos: se omite");
+  } else {
+    for (let i = 0; i < 4; i++) {
+      const created = await call("POST", "/api/v1/orders", { token: waiter, body: { tableId: free[0].id, items: pick(i) } });
+      if (created.status !== 201) break;
+      const id = created.json.data.id;
+      const step = (token, status, extra = {}) => call("PATCH", `/api/v1/orders/${id}/status`, { token, body: { status, ...extra } });
+      await step(cook, "preparing");
+      await step(cook, "ready");
+      await step(waiter, "served");
+      const paid = await step(cashier, "paid", { paymentMethod: i % 2 === 0 ? "cash" : "card" });
+      if (paid.status === 200) made++;
+    }
+    console.log(`  + ${made} pedidos cobrados (efectivo y tarjeta): míralos en IVA -> Consultar`);
+  }
+}
 
 console.log(`
 Listo. Cuentas de demostración:
