@@ -55,7 +55,7 @@ Para detener: `Ctrl + C` en la terminal de `npm start`. Para apagar la base de d
 > Comprobación rápida: `http://localhost:3000/api/v1/gateway/health` debe responder
 > `{"status":"ok","services":{"user":"up","menu":"up","order":"up","audit":"up","customer":"up","reservation":"up","notification":"up","payment":"up","attendance":"up","payroll":"up"}}`.
 
-> **Atajo en Windows:** doble clic en **`iniciar.bat`** hace todo lo anterior (abre Docker si hace falta, prepara y arranca). `cargar-datos.bat` carga la demostración.
+> **Atajo en Windows:** doble clic en **`iniciar.bat`** hace todo lo anterior (abre Docker si hace falta, prepara y arranca). `cargar-datos.bat` carga la demostración y `detener.bat` apaga todo.
 
 > **¿Ya tenías la versión anterior?** Ejecuta `npm install`, `npm run setup` (agrega a tus `.env` solo las variables nuevas, sin tocar las que ya tienes),
 > `npm run setup:nomina`, `npm run prisma:generate` y `npm run db:push`.
