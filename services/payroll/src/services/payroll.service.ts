@@ -2,6 +2,8 @@ import { AppError, type Role } from "@resto/core";
 import type {
   CompensationDTO,
   CompensationInput,
+  EngineSnapshotDTO,
+  EngineTransactionDTO,
   PayrollEngineStatusDTO,
   PayrollLineDTO,
   PayrollRunDTO,
@@ -254,6 +256,33 @@ export const payrollService = {
       period: l.run.period,
       approvedAt: l.run.approvedAt?.toISOString() ?? null,
     }));
+  },
+
+  // ---------------------------------------------------------------- transacciones con el motor externo
+
+  /** Últimas llamadas al motor SistemaNomina (la más reciente primero). */
+  async engineTransactions(limit = 100): Promise<EngineTransactionDTO[]> {
+    const rows = await payrollRepository.listTransactions(Math.min(Math.max(limit, 1), 300));
+    return rows.map((t) => ({
+      id: t.id,
+      at: t.at.toISOString(),
+      target: t.target as EngineTransactionDTO["target"],
+      method: t.method,
+      path: t.path,
+      summary: t.summary,
+      status: t.status,
+      ok: t.ok,
+      durationMs: t.durationMs,
+      requestBody: t.requestBody,
+      responseBody: t.responseBody,
+      error: t.error,
+    }));
+  },
+
+  /** Lo que el motor tiene guardado ahora: sus empleados y las incidencias que le hemos mandado. */
+  async engineSnapshot(): Promise<EngineSnapshotDTO> {
+    const s = await nominaClient.snapshot();
+    return { employees: s.employees, incidents: s.incidents.slice(-300) };
   },
 
   // ---------------------------------------------------------------- estado del motor externo

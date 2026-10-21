@@ -29,6 +29,8 @@ payrollRouter.put(
 // ---- nóminas ----
 
 payrollRouter.get("/engine", requirePermission("payroll:read-all"), asyncHandler(payrollController.engineStatus));
+payrollRouter.get("/engine/transactions", requirePermission("payroll:read-all"), asyncHandler(payrollController.engineTransactions));
+payrollRouter.get("/engine/data", requirePermission("payroll:read-all"), asyncHandler(payrollController.engineSnapshot));
 
 payrollRouter.get("/runs", requirePermission("payroll:read-all"), asyncHandler(payrollController.listRuns));
 

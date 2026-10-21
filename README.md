@@ -283,7 +283,7 @@ node scripts/fake-gateway.mjs     # pasarela falsa en :4100
 | `POST /attendance/clock-in` · `clock-out` · `GET /attendance/me/status` · `/me` · `/me/summary?period=` | `attendance:clock` |
 | `GET /attendance?from=&to=&userId=` · `GET /attendance/summary?period=` · `POST /attendance/manual` · `PATCH /attendance/:id` | `attendance:read-all` / `attendance:manage` |
 | `GET /payroll/me` (mis recibos aprobados) | `payroll:read-own` |
-| `GET /payroll/compensations` · `GET /payroll/runs` · `GET /payroll/runs/:period` · `GET /payroll/engine` | `payroll:read-all` |
+| `GET /payroll/compensations` · `GET /payroll/runs` · `GET /payroll/runs/:period` · `GET /payroll/engine` · `/engine/transactions` · `/engine/data` | `payroll:read-all` |
 | `PUT /payroll/compensations/:userId` | `payroll:manage` |
 | `POST /payroll/runs` (calcular) · `POST /payroll/runs/:period/approve` | `payroll:calculate` / `payroll:approve` |
 | `POST /tax/calculate` · `GET /tax/report?from=&to=` | `tax:calculate` / `tax:report` |

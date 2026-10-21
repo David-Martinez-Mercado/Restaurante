@@ -74,3 +74,28 @@ export interface PayrollEngineStatusDTO {
   payrollUrl: string;
   incidentsUrl: string;
 }
+
+/** Una llamada del restaurante al motor de nómina externo (SistemaNomina), tal como se hizo. */
+export interface EngineTransactionDTO {
+  id: string;
+  at: string;
+  /** Servicio del motor al que se llamó. */
+  target: "employees" | "incidents" | "payroll";
+  method: string;
+  path: string;
+  /** Frase legible de lo que se pidió. */
+  summary: string;
+  /** null = el motor no respondió. */
+  status: number | null;
+  ok: boolean;
+  durationMs: number;
+  requestBody: unknown;
+  responseBody: unknown;
+  error: string | null;
+}
+
+/** Lo que el motor tiene guardado ahora mismo (solo lectura). */
+export interface EngineSnapshotDTO {
+  employees: { id: number; name: string; position: string; baseSalary: number }[];
+  incidents: { id: number; employeeId: number; period: string; type: string; hoursOrDays: number; amount: number }[];
+}

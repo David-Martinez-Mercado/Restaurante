@@ -98,3 +98,23 @@ model ExternalIncident {
   @@map("external_incidents")
   @@schema("payroll_service")
 }
+
+/// Bitácora de las llamadas de este servicio al motor externo SistemaNomina: qué se pidió y qué respondió.
+model EngineTransaction {
+  id           String   @id @default(uuid())
+  at           DateTime @default(now())
+  target       String
+  method       String
+  path         String
+  summary      String
+  status       Int?
+  ok           Boolean
+  durationMs   Int      @map("duration_ms")
+  requestBody  Json?    @map("request_body")
+  responseBody Json?    @map("response_body")
+  error        String?
+
+  @@index([at])
+  @@map("engine_transactions")
+  @@schema("payroll_service")
+}

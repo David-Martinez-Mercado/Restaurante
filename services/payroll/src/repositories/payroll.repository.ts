@@ -1,7 +1,7 @@
-import type { Compensation, ExternalIncident, Prisma, PayrollLine, PayrollRun } from "../generated/client/index.js";
+import type { Compensation, EngineTransaction, ExternalIncident, Prisma, PayrollLine, PayrollRun } from "../generated/client/index.js";
 import { prisma } from "../db.js";
 
-export type { Compensation, ExternalIncident, PayrollLine, PayrollRun };
+export type { Compensation, EngineTransaction, ExternalIncident, PayrollLine, PayrollRun };
 export type RunWithLines = PayrollRun & { lines: PayrollLine[] };
 export type LineWithRun = PayrollLine & { run: PayrollRun };
 
@@ -92,6 +92,19 @@ export const payrollRepository = {
 
   async forgetIncidents(ids: string[]): Promise<void> {
     await prisma.externalIncident.deleteMany({ where: { id: { in: ids } } });
+  },
+
+  // ---- bitácora de transacciones con el motor externo ----
+
+  async saveTransaction(data: Omit<Prisma.EngineTransactionUncheckedCreateInput, "id">): Promise<void> {
+    await prisma.engineTransaction.create({ data });
+    // Se conservan solo las últimas 500 para que la bitácora no crezca sin límite.
+    const old = await prisma.engineTransaction.findMany({ orderBy: { at: "desc" }, skip: 500, take: 100, select: { id: true } });
+    if (old.length > 0) await prisma.engineTransaction.deleteMany({ where: { id: { in: old.map((o) => o.id) } } });
+  },
+
+  async listTransactions(limit: number): Promise<EngineTransaction[]> {
+    return prisma.engineTransaction.findMany({ orderBy: { at: "desc" }, take: limit });
   },
 
   async rememberIncident(data: { period: string; userId: string; kind: "OVERTIME" | "ABSENCE"; externalId: number }): Promise<void> {

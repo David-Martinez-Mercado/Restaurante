@@ -18,10 +18,11 @@ vi.mock("../repositories/payroll.repository.js", () => ({
     incidentsOf: vi.fn(),
     forgetIncidents: vi.fn(),
     rememberIncident: vi.fn(),
+    listTransactions: vi.fn(),
   },
 }));
 vi.mock("../clients/nomina.client.js", () => ({
-  nominaClient: { ping: vi.fn(), createEmployee: vi.fn(), createIncident: vi.fn(), deleteIncident: vi.fn(), generate: vi.fn() },
+  nominaClient: { ping: vi.fn(), snapshot: vi.fn(), createEmployee: vi.fn(), createIncident: vi.fn(), deleteIncident: vi.fn(), generate: vi.fn() },
 }));
 vi.mock("../clients/attendance.client.js", () => ({ attendanceClient: { summary: vi.fn() } }));
 
@@ -258,5 +259,25 @@ describe("sueldos y recibos", () => {
 
     expect(payrollRepository.approvedLinesOf).toHaveBeenCalledWith("u1");
     expect(slips[0]).toMatchObject({ period: "2030-05", approvedAt: NOW.toISOString() });
+  });
+});
+
+describe("transacciones con el motor externo", () => {
+  it("devuelve la bitácora (más reciente primero) como DTOs y limita el tamaño pedido", async () => {
+    vi.mocked(payrollRepository.listTransactions).mockResolvedValue([
+      { id: "t1", at: NOW, target: "employees", method: "POST", path: "/employees", summary: "Alta de «Ana»", status: 200, ok: true, durationMs: 12, requestBody: { name: "Ana" }, responseBody: { id: 1 }, error: null },
+    ] as never);
+
+    const [t] = await payrollService.engineTransactions(5000);
+
+    expect(payrollRepository.listTransactions).toHaveBeenCalledWith(300);
+    expect(t).toMatchObject({ id: "t1", at: NOW.toISOString(), target: "employees", status: 200, ok: true, durationMs: 12 });
+    await payrollService.engineTransactions(0);
+    expect(payrollRepository.listTransactions).toHaveBeenLastCalledWith(1);
+  });
+
+  it("muestra lo que el motor tiene guardado ahora", async () => {
+    vi.mocked(nominaClient.snapshot).mockResolvedValue({ employees: [{ id: 1, name: "Ana", position: "Mesera", baseSalary: 9000 }], incidents: [] });
+    expect(await payrollService.engineSnapshot()).toEqual({ employees: [{ id: 1, name: "Ana", position: "Mesera", baseSalary: 9000 }], incidents: [] });
   });
 });

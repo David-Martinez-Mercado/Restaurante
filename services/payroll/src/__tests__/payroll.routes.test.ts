@@ -11,6 +11,8 @@ vi.mock("../services/payroll.service.js", () => ({
     approve: vi.fn().mockResolvedValue({ period: "2030-06" }),
     payslips: vi.fn().mockResolvedValue([]),
     engineStatus: vi.fn().mockResolvedValue({ available: true }),
+    engineTransactions: vi.fn().mockResolvedValue([]),
+    engineSnapshot: vi.fn().mockResolvedValue({ employees: [], incidents: [] }),
   },
 }));
 
@@ -48,7 +50,7 @@ describe("recibos propios", () => {
 describe("sueldos y nóminas: solo gerencia", () => {
   it("mesero, cocinero, cajero y cliente no ven sueldos ni nóminas ajenas (403)", async () => {
     for (const role of ["waiter", "cook", "cashier", "customer"] as const) {
-      for (const path of ["/compensations", "/runs", "/runs/2030-06", "/engine"]) {
+      for (const path of ["/compensations", "/runs", "/runs/2030-06", "/engine", "/engine/transactions", "/engine/data"]) {
         await request(app).get(`/api/v1/payroll${path}`).set("Authorization", bearer(role)).expect(403);
       }
     }
@@ -56,7 +58,7 @@ describe("sueldos y nóminas: solo gerencia", () => {
 
   it("gerente y admin consultan", async () => {
     for (const role of ["manager", "admin"] as const) {
-      for (const path of ["/compensations", "/runs", "/runs/2030-06", "/engine"]) {
+      for (const path of ["/compensations", "/runs", "/runs/2030-06", "/engine", "/engine/transactions", "/engine/data"]) {
         await request(app).get(`/api/v1/payroll${path}`).set("Authorization", bearer(role)).expect(200);
       }
     }

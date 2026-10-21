@@ -939,3 +939,61 @@ tfoot td {
   border-bottom: none;
   background: var(--neutral-bg);
 }
+
+/* ---- Transacciones con el motor de nómina ---- */
+.flow {
+  background: var(--neutral-bg);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  overflow-x: auto;
+  margin: 0 0 14px;
+}
+.link-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+.tx-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tx {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--ok);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.tx-bad {
+  border-left-color: var(--bad);
+}
+.tx summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  cursor: pointer;
+}
+.tx-time {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.tx-summary {
+  flex: 1;
+  min-width: 220px;
+}
+.tx-detail {
+  margin-top: 10px;
+}

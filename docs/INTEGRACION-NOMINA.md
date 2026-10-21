@@ -45,6 +45,17 @@ Sus importes van en **pesos con decimales**; los nuestros, en **centavos enteros
 
 Las respuestas se **validan** con un esquema: si el autor cambia la forma, el sistema responde 502 con un mensaje claro en lugar de guardar basura.
 
+## 3b. Ver las transacciones entre los dos sistemas
+
+En la interfaz, entra como `gerente` o `admin` → pestaña **Motor de nómina**. Muestra, en vivo (cada 3 s):
+
+- cada llamada del restaurante al motor (hora, método, ruta, resultado, milisegundos), con lo que se **envió** y lo que el motor **respondió** (despliega la fila);
+- lo que el motor tiene guardado en ese momento (empleados e incidencias);
+- un botón para **calcular una nómina** y ver aparecer las transacciones.
+
+La bitácora (`engine_transactions`, últimas 500) la llena el adaptador sin tocar al otro repo: `GET /api/v1/payroll/engine/transactions` y `GET /api/v1/payroll/engine/data`.
+También puedes abrir los datos crudos del motor en el navegador: http://127.0.0.1:3102/employees y http://127.0.0.1:3104/incidents.
+
 ## 4. Flujo de "Calcular nómina" (`POST /api/v1/payroll/runs`)
 
 1. Se comprueba que el motor externo responda; si no, **503 y no se toca nada**.

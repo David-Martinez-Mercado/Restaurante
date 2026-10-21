@@ -6,6 +6,7 @@ import { ToastProvider } from "./ui";
 import { AttendanceAdminView } from "./views/AttendanceAdmin";
 import { AuditView } from "./views/Audit";
 import { ClockView } from "./views/Clock";
+import { EngineView } from "./views/Engine";
 import { Login } from "./views/Login";
 import { MenuView } from "./views/Menu";
 import { NotificationsView } from "./views/Notifications";
@@ -36,6 +37,7 @@ const TABS: Tab[] = [
   { id: "clock", label: "Checador", permission: "attendance:clock", view: () => <ClockView /> },
   { id: "attendance", label: "Asistencia", permission: "attendance:read-all", view: () => <AttendanceAdminView /> },
   { id: "payroll", label: "Nómina", permission: "payroll:read-all", view: () => <PayrollView /> },
+  { id: "engine", label: "Motor de nómina", permission: "payroll:read-all", view: () => <EngineView /> },
   { id: "tax", label: "IVA", permission: "tax:calculate", view: () => <TaxView /> },
   { id: "audit", label: "Auditoría", permission: "audit:read", view: () => <AuditView /> },
   { id: "users", label: "Usuarios", permission: "users:read", view: () => <UsersView /> },

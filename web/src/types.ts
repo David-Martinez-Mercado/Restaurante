@@ -11,6 +11,8 @@ export type {
   CustomerDTO,
   CustomerSummaryDTO,
   DishDTO,
+  EngineSnapshotDTO,
+  EngineTransactionDTO,
   GatewayChargeRequest,
   NotificationDTO,
   OrderDTO,

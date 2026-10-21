@@ -52,6 +52,16 @@ export const payrollController = {
     res.status(200).json({ success: true, data: await payrollService.payslips(req.user!.sub) });
   },
 
+  async engineTransactions(req: Request, res: Response): Promise<void> {
+    const limit = Number(req.query.limit);
+    const data = await payrollService.engineTransactions(Number.isInteger(limit) && limit > 0 ? limit : undefined);
+    res.status(200).json({ success: true, data });
+  },
+
+  async engineSnapshot(_req: Request, res: Response): Promise<void> {
+    res.status(200).json({ success: true, data: await payrollService.engineSnapshot() });
+  },
+
   async engineStatus(_req: Request, res: Response): Promise<void> {
     res.status(200).json({ success: true, data: await payrollService.engineStatus() });
   },
