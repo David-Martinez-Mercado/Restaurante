@@ -48,6 +48,82 @@ function Transaction({ t }: { t: EngineTransactionDTO }) {
   );
 }
 
+interface EngineLine {
+  employeeId: number;
+  baseSalary: number;
+  isr: number;
+  imss: number;
+  infonavit: number;
+  subsidio: number;
+  netPay: number;
+  overtimePay?: number;
+  absenceDeduction?: number;
+}
+
+const pesos = (n: number) => n.toLocaleString("es-MX", { style: "currency", currency: "MXN" });
+
+/** La respuesta COMPLETA que dio el motor al último cálculo, con sus nombres de campo y en pesos, tal cual. */
+function LastCalculation({ txs, names }: { txs: EngineTransactionDTO[]; names: Map<number, string> }) {
+  const last = txs.find((t) => t.path === "/periods/generate" && t.ok);
+  if (!last) {
+    return <p className="muted">Aún no hay un cálculo. Pulsa “Calcular” para ver aquí lo que responde el motor.</p>;
+  }
+  const period = (last.requestBody as { period?: string } | null)?.period ?? "";
+  const rows = Array.isArray(last.responseBody) ? (last.responseBody as EngineLine[]) : null;
+
+  return (
+    <div className="card">
+      <p>
+        <b>Respuesta de <code>POST :3103/periods/generate</code></b> · periodo <b>{period}</b> · {time(last.at)} · {last.durationMs} ms
+      </p>
+      {!rows ? (
+        <p className="hint">La respuesta fue muy grande y se guardó recortada en la bitácora. Vuelve a calcular para verla completa en el JSON de la transacción.</p>
+      ) : (
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Empleado del motor</th>
+                <th>baseSalary</th>
+                <th>overtimePay</th>
+                <th>absenceDeduction</th>
+                <th>isr</th>
+                <th>imss</th>
+                <th>infonavit</th>
+                <th>subsidio</th>
+                <th>netPay</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.employeeId}>
+                  <td>
+                    #{r.employeeId} {names.get(r.employeeId) ?? ""}
+                  </td>
+                  <td>{pesos(r.baseSalary)}</td>
+                  <td>{pesos(r.overtimePay ?? 0)}</td>
+                  <td>{pesos(r.absenceDeduction ?? 0)}</td>
+                  <td>{pesos(r.isr)}</td>
+                  <td>{pesos(r.imss)}</td>
+                  <td>{pesos(r.infonavit)}</td>
+                  <td>{pesos(r.subsidio)}</td>
+                  <td>
+                    <b>{pesos(r.netPay)}</b>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="hint">
+        Así lo devuelve el motor (los nombres de columna son los suyos, en pesos). El restaurante lo convierte a centavos y lo guarda en la pestaña Nómina; el motor calcula a
+        TODOS sus empleados y el restaurante solo se queda con los suyos.
+      </p>
+    </div>
+  );
+}
+
 /** Lo que pasa entre el restaurante y el motor de nómina externo (SistemaNomina), en vivo. */
 export function EngineView() {
   const { can } = useAuth();
@@ -110,6 +186,9 @@ export function EngineView() {
         </p>
       )}
 
+      <h3 className="section-title">Lo que responde el motor al calcular</h3>
+      {txs.data && <LastCalculation txs={txs.data} names={name} />}
+
       <h3 className="section-title">Transacciones (la más reciente arriba)</h3>
       <State
         loading={txs.loading}
@@ -119,7 +198,7 @@ export function EngineView() {
       />
       {txs.data && txs.data.length > 0 && <ul className="tx-list">{txs.data.map((t) => <Transaction key={t.id} t={t} />)}</ul>}
 
-      <h3 className="section-title">Lo que tiene guardado el motor ahora</h3>
+      <h3 className="section-title">Lo que tiene guardado el motor ahora (<code>GET :3102/employees</code> y <code>GET :3104/incidents</code>)</h3>
       <State loading={snap.loading} error={snap.error} onRetry={() => void snap.reload()} />
       {snap.data && (
         <div className="two-col">

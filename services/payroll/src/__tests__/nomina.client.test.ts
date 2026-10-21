@@ -107,7 +107,7 @@ describe("bitácora de transacciones con el motor (observer)", () => {
   it("una respuesta grande (la nómina completa) se recorta para no inflar la bitácora", async () => {
     const seen: any[] = [];
     nominaClient.observe((tx) => seen.push(tx));
-    const big = Array.from({ length: 80 }, (_, i) => ({ employeeId: i, baseSalary: 1, isr: 1, imss: 1, infonavit: 1, subsidio: 0, netPay: 1 }));
+    const big = Array.from({ length: 400 }, (_, i) => ({ employeeId: i, baseSalary: 1, isr: 1, imss: 1, infonavit: 1, subsidio: 0, netPay: 1 }));
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(reply(200, big)));
 
     await nominaClient.generate("2030-06");

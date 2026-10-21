@@ -76,7 +76,7 @@ const unavailable = () => AppError.serviceUnavailable("de nómina externo (Siste
 const money = (pesos: number) => pesos.toLocaleString("es-MX", { style: "currency", currency: "MXN" });
 
 /** Las respuestas largas (el cálculo de toda la nómina) se recortan para no inflar la bitácora. */
-function trimForLog(value: unknown, max = 4000): unknown {
+function trimForLog(value: unknown, max = 20_000): unknown {
   if (value === null || value === undefined) return null;
   const text = JSON.stringify(value);
   return text.length <= max ? value : { recortado: true, bytes: text.length, vistaPrevia: text.slice(0, 600) };
