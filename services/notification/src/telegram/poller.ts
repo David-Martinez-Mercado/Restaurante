@@ -1,6 +1,7 @@
 import { logger } from "@resto/http";
 import { config } from "../config.js";
 import { customerClient } from "../clients/customer.client.js";
+import { invoiceClient } from "../clients/invoice.client.js";
 import { reservationClient } from "../clients/reservation.client.js";
 import { Bot } from "./bot.js";
 import { telegram } from "./telegram.api.js";
@@ -27,6 +28,7 @@ export function startTelegramPolling(): () => void {
     api: telegram,
     customers: customerClient,
     reservations: reservationClient,
+    invoices: invoiceClient,
     timeZone: config.TIMEZONE,
     now: () => new Date(),
   });

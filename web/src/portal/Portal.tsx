@@ -83,7 +83,14 @@ export function Portal() {
       <main className="content">
         <State loading={profile.loading} error={profile.error} onRetry={() => void profile.reload()} />
         {ready && current === "pedir" && <OrderOnline profile={me} onDone={() => goTo("pedidos")} />}
-        {ready && current === "pedidos" && <MyOrders returnPaymentId={returnedPayment} onDismissReturn={() => setReturnedPayment(null)} />}
+        {ready && current === "pedidos" && (
+          <MyOrders
+            profile={me}
+            returnPaymentId={returnedPayment}
+            onDismissReturn={() => setReturnedPayment(null)}
+            onGoProfile={() => goTo("perfil")}
+          />
+        )}
         {ready && current === "reservaciones" && <MyReservations profile={me} />}
         {ready && current === "perfil" && <Profile key={me?.id ?? "nuevo"} profile={me} reload={() => void profile.reload(true)} />}
       </main>

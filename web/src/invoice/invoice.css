@@ -1,0 +1,90 @@
+/* Facturación (CFDI): representación impresa y listas */
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  word-break: break-all;
+}
+.invoice-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.inv-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px 14px;
+  margin: 0;
+}
+.inv-meta dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.inv-meta dd {
+  margin: 0;
+}
+.inv-title {
+  margin: 4px 0 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.inv-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.inv-table th,
+.inv-table td {
+  text-align: left;
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--border);
+}
+.inv-seals {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.seal {
+  margin: 0 0 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.62rem;
+  word-break: break-all;
+  max-height: 4.6em;
+  overflow: hidden;
+}
+.modal select,
+.modal textarea {
+  width: 100%;
+}
+
+/* Al imprimir solo sale la factura, no el resto de la página */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .invoice-sheet,
+  .invoice-sheet * {
+    visibility: visible;
+  }
+  .overlay {
+    position: absolute;
+    inset: 0 auto auto 0;
+    display: block;
+    padding: 0;
+    background: none;
+  }
+  .modal {
+    max-height: none;
+    max-width: none;
+    overflow: visible;
+    padding: 0;
+  }
+  .seal {
+    max-height: none;
+  }
+  .no-print {
+    display: none;
+  }
+}

@@ -92,7 +92,7 @@ const profile = await call("PUT", "/api/v1/customers/me", {
   body: {
     fullName: "Cliente Demo",
     phone: "5512345678",
-    billing: { rfc: "XAXX010101000", businessName: "Cliente Demo", postalCode: "34000", taxRegime: "612", cfdiUse: "G03" },
+    billing: { rfc: "XIA190128J61", businessName: "XENON INDUSTRIAL ARTICLES", postalCode: "76343", taxRegime: "601", cfdiUse: "G03" },
   },
 });
 console.log(`  ${profile.status === 200 ? "=" : "!"} nombre, teléfono y datos fiscales (${profile.status})`);

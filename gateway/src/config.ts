@@ -25,6 +25,7 @@ const envSchema = z.object({
   CUSTOMER_SERVICE_URL: url("http://localhost:3008"),
   ATTENDANCE_SERVICE_URL: url("http://localhost:3009"),
   PAYROLL_SERVICE_URL: url("http://localhost:3010"),
+  BILLING_SERVICE_URL: url("http://localhost:3011"),
   CORS_ORIGINS: z
     .string()
     .default("http://localhost:5173")

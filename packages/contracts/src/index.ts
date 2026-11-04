@@ -6,6 +6,7 @@ export * from "./reservation.contracts.js";
 export * from "./payment.contracts.js";
 export * from "./notification.contracts.js";
 export * from "./tax.contracts.js";
+export * from "./invoice.contracts.js";
 export * from "./attendance.contracts.js";
 export * from "./payroll.contracts.js";
 export * from "./audit.contracts.js";

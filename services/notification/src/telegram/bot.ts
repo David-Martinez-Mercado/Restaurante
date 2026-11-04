@@ -1,6 +1,7 @@
 import { MAX_PARTY_SIZE, type CustomerInternalDTO, type ReservationDTO, type SlotDTO } from "@resto/contracts";
 import { logger } from "@resto/http";
 import { UpstreamError } from "../clients/customer.client.js";
+import { InvoiceRejected, InvoiceUnavailable } from "../clients/invoice.client.js";
 import { ReservationRejected, ReservationUnavailable } from "../clients/reservation.client.js";
 import { escapeHtml, formatDay, formatTime } from "../domain/templates.js";
 import type { InlineButton, SendOptions, TelegramUpdate } from "./telegram.api.js";
@@ -20,6 +21,9 @@ export interface BotDeps {
     create(input: { telegramChatId: string; reservedFor: string; partySize: number; customerName?: string }): Promise<ReservationDTO>;
     upcoming(chatId: string): Promise<ReservationDTO[]>;
     cancel(chatId: string, code: string): Promise<ReservationDTO>;
+  };
+  invoices: {
+    issue(chatId: string, orderId: string): Promise<{ serie: string; folio: number; uuid: string | null }>;
   };
   timeZone: string;
   now: () => Date;
@@ -169,6 +173,8 @@ export class Bot {
 
     // Cancelar una reservación desde la lista no necesita sesión.
     if (kind === "x") return this.cancelReservation(chatId, value);
+    // "Sí, facturar" del resumen de consumo: tampoco necesita sesión.
+    if (kind === "f") return this.invoice(chatId, value);
 
     const session = this.live(chatId);
     if (!session) return this.say(chatId, "Esa conversación ya venció. Escribe /reservar para empezar de nuevo.");
@@ -265,6 +271,22 @@ export class Bot {
       // Si el horario se llenó o ya no cumple las reglas, se vuelve a ofrecer la elección.
       if (err instanceof ReservationRejected) this.sessions.delete(chatId);
       await this.say(chatId, this.explain(err));
+    }
+  }
+
+  // ---------------------------------------------------------------- facturar
+
+  private async invoice(chatId: string, orderId: string): Promise<void> {
+    await this.say(chatId, "Facturando tu consumo, un momento…");
+    try {
+      const invoice = await this.deps.invoices.issue(chatId, orderId);
+      // El detalle (monto y folio fiscal) llega aparte, como el aviso "invoice.issued".
+      await this.say(chatId, `🧾 ¡Listo! Tu factura <b>${escapeHtml(invoice.serie)}-${invoice.folio}</b> quedó emitida. Descarga el XML en la app: Mis pedidos → Ver factura.`);
+    } catch (err) {
+      if (err instanceof InvoiceRejected) return this.say(chatId, escapeHtml(err.message));
+      if (err instanceof InvoiceUnavailable) return this.say(chatId, "El servicio de facturación no está disponible ahora. Intenta de nuevo en unos minutos o pide tu factura en la app.");
+      logger.error({ err }, "Error inesperado al facturar desde el bot");
+      await this.say(chatId, "Ocurrió un problema al facturar. Intenta de nuevo en unos minutos.");
     }
   }
 

@@ -1,0 +1,79 @@
+// Billing Service (facturación) — esquema "billing_service".
+// orderId y customerUserId son referencias lógicas a otros servicios (sin FK).
+// Aquí se guardan las facturas CFDI 4.0 y su XML timbrado, que es el comprobante fiscal real.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+  output          = "../src/generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["billing_service"]
+}
+
+enum InvoiceStatus {
+  pending
+  issued
+  cancelled
+  rejected
+
+  @@schema("billing_service")
+}
+
+model Invoice {
+  id             String        @id @default(uuid())
+  orderId        String        @map("order_id")
+  orderCode      String        @map("order_code")
+  customerUserId String        @map("customer_user_id")
+  /// Quién pidió la factura (el cliente o el personal que la emitió por él).
+  requestedBy    String        @map("requested_by")
+  serie          String
+  /// Consecutivo de la serie. Los intentos rechazados también consumen folio.
+  folio          Int           @unique @default(autoincrement())
+  status         InvoiceStatus @default(pending)
+
+  /// Datos del emisor y receptor tal como se timbraron (la factura no cambia aunque cambie el perfil).
+  emisorRfc            String @map("emisor_rfc")
+  emisorName           String @map("emisor_name")
+  emisorRegime         String @map("emisor_regime")
+  emisorPostalCode     String @map("emisor_postal_code")
+  receptorRfc          String @map("receptor_rfc")
+  receptorName         String @map("receptor_name")
+  receptorPostalCode   String @map("receptor_postal_code")
+  receptorRegime       String @map("receptor_regime")
+  receptorCfdiUse      String @map("receptor_cfdi_use")
+
+  concepts      Json
+  subtotalCents Int    @map("subtotal_cents")
+  ivaCents      Int    @map("iva_cents")
+  totalCents    Int    @map("total_cents")
+  paymentForm   String @map("payment_form")
+
+  /// Resultado del timbrado.
+  uuid             String?   @unique
+  stampedAt        DateTime? @map("stamped_at")
+  xml              String?
+  selloCfd         String?   @map("sello_cfd")
+  selloSat         String?   @map("sello_sat")
+  noCertificadoSat String?   @map("no_certificado_sat")
+  cadenaOriginal   String?   @map("cadena_original")
+  qrBase64         String?   @map("qr_base64")
+  errorMessage     String?   @map("error_message")
+
+  /// Cancelación.
+  cancelledAt   DateTime? @map("cancelled_at")
+  cancelReason  String?   @map("cancel_reason")
+  cancelMessage String?   @map("cancel_message")
+  cancelledBy   String?   @map("cancelled_by")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([orderId, status])
+  @@index([customerUserId, createdAt])
+  @@map("invoices")
+  @@schema("billing_service")
+}

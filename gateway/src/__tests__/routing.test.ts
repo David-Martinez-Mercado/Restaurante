@@ -23,6 +23,8 @@ describe("matchRoute", () => {
     ["/api/v1/attendance/me/status", "attendance"],
     ["/api/v1/payroll/runs", "payroll"],
     ["/api/v1/payroll/me", "payroll"],
+    ["/api/v1/invoices", "billing"],
+    ["/api/v1/invoices/abc/xml", "billing"],
   ])("%s -> %s", (path, service) => {
     expect(matchRoute(path)?.service).toBe(service);
   });
@@ -33,6 +35,7 @@ describe("matchRoute", () => {
       "/api/v1/internal/orders/abc/payment-confirmed",
       "/api/v1/internal/customers/by-user/abc",
       "/api/v1/internal/reminders/run",
+      "/api/v1/internal/invoices/telegram",
     ]) {
       expect(matchRoute(path)).toBeNull();
     }
@@ -45,6 +48,8 @@ describe("matchRoute", () => {
     expect(matchRoute("/api/v1/taxes")).toBeNull();
     expect(matchRoute("/api/v1/payrolls")).toBeNull();
     expect(matchRoute("/api/v1/attendances")).toBeNull();
+    expect(matchRoute("/api/v1/invoice")).toBeNull();
+    expect(matchRoute("/api/v1/invoicesX")).toBeNull();
   });
 
   it("no confunde prefijos parecidos", () => {
@@ -95,6 +100,8 @@ describe("isPublic", () => {
     expect(isPublic("POST", "/api/v1/attendance/clock-in")).toBe(false);
     expect(isPublic("GET", "/api/v1/payroll/me")).toBe(false);
     expect(isPublic("POST", "/api/v1/tax/calculate")).toBe(false);
+    expect(isPublic("POST", "/api/v1/invoices")).toBe(false);
+    expect(isPublic("GET", "/api/v1/invoices/abc/xml")).toBe(false);
   });
 
   it("las sondas de salud son públicas", () => {

@@ -1,7 +1,7 @@
 // Prueba de humo de extremo a extremo contra el sistema en ejecución (vía gateway).
 // Verifica autenticación, autorización, pedidos (mesa y en línea), pago con webhook firmado,
 // avisos (campana y Telegram), reservaciones, calculadora de IVA, checador, nómina (con el motor
-// externo SistemaNomina) y auditoría.
+// externo SistemaNomina), facturación CFDI 4.0 (Profact, ambiente de pruebas) y auditoría.
 // Crea datos propios con sufijo único y los limpia al terminar; no depende del seed.
 // Para simular al bot de Telegram y a la pasarela llama directo a las rutas internas con la
 // llave del .env, igual que lo harían esos componentes.
@@ -81,7 +81,7 @@ const sign = (raw) => "sha256=" + createHmac("sha256", WEBHOOK_SECRET).update(ra
 
 console.log("AUTENTICACIÓN");
 const health = await call("GET", "/api/v1/gateway/health");
-check("health agregado ok (los 10 servicios)", health.json?.status === "ok" && Object.keys(health.json.services ?? {}).length === 10, health.text);
+check("health agregado ok (los 11 servicios)", health.json?.status === "ok" && Object.keys(health.json.services ?? {}).length === 11, health.text);
 check("sin token -> 401", (await call("GET", "/api/v1/dishes")).status === 401);
 check("token falso -> 401 TOKEN_INVALID", (await call("GET", "/api/v1/dishes", { token: "basura" })).json?.error?.code === "TOKEN_INVALID");
 const bad = await call("POST", "/api/v1/auth/login", { body: { username: "no_existe", password: "x" } });
@@ -157,10 +157,10 @@ const saveAna = await call("PUT", "/api/v1/customers/me", {
   token: ana.token,
   body: {
     fullName: `Ana López ${sfx}`, phone: "5512345678",
-    billing: { rfc: "XAXX010101000", businessName: "Ana López", postalCode: "34000", taxRegime: "612", cfdiUse: "G03" },
+    billing: { rfc: "XIA190128J61", businessName: "XENON INDUSTRIAL ARTICLES", postalCode: "76343", taxRegime: "601", cfdiUse: "G03" },
   },
 });
-check("el cliente guarda su perfil con datos fiscales", saveAna.status === 200 && saveAna.json?.data?.billing?.rfc === "XAXX010101000", saveAna.text);
+check("el cliente guarda su perfil con datos fiscales", saveAna.status === 200 && saveAna.json?.data?.billing?.rfc === "XIA190128J61", saveAna.text);
 await call("PUT", "/api/v1/customers/me", { token: beto.token, body: { fullName: `Beto Ruiz ${sfx}`, phone: "5598765432" } });
 check("RFC inválido -> 422", (await call("PUT", "/api/v1/customers/me", { token: ana.token, body: { fullName: "Ana López", phone: "5512345678", billing: { rfc: "MAL", businessName: "x y", postalCode: "34000", taxRegime: "612", cfdiUse: "G03" } } })).status === 422);
 check("el cliente no lista a otros clientes -> 403", (await call("GET", "/api/v1/customers", { token: ana.token })).status === 403);
@@ -379,6 +379,82 @@ const cancelNote = await eventually(async () => (await call("GET", "/api/v1/noti
 check("recibe el aviso de cancelación", !!cancelNote);
 check("una cancelada no se puede reactivar (409)", (await call("PATCH", `/api/v1/reservations/${rv.id}/status`, { token: ana.token, body: { status: "confirmed" } })).status === 409);
 check("el mesero cancela la del mostrador", (await call("PATCH", `/api/v1/reservations/${walkin.json.data.id}/status`, { token: tokens.waiter, body: { status: "cancelled" } })).status === 200);
+
+// ---------------------------------------------------------------- facturación (CFDI 4.0 con Profact, ambiente de pruebas)
+
+console.log("FACTURACIÓN (Profact)");
+const BILLING_DIRECT = `http://localhost:${port("services/billing/.env", 3011)}`;
+const fiscal = { rfc: "XIA190128J61", businessName: "XENON INDUSTRIAL ARTICLES", postalCode: "76343", taxRegime: "601", cfdiUse: "G03" };
+
+check("sin token no se factura -> 401", (await call("POST", "/api/v1/invoices", { body: { orderId: ol.id } })).status === 401);
+check("orderId inválido -> 422", (await call("POST", "/api/v1/invoices", { token: ana.token, body: { orderId: "no-es-uuid" } })).status === 422);
+check("sin datos fiscales guardados -> 409", (await call("POST", "/api/v1/invoices", { token: beto.token, body: { orderId: o.id } })).status === 409);
+check("nadie factura el consumo de otro cliente -> 404", (await call("POST", "/api/v1/invoices", { token: beto.token, body: { orderId: ol.id } })).status === 404);
+check("el cocinero no factura ni consulta -> 403", (await call("GET", "/api/v1/invoices", { token: tokens.cook })).status === 403);
+
+const inv1 = await call("POST", "/api/v1/invoices", { token: ana.token, body: { orderId: ol.id } });
+check("el cliente factura su consumo pagado -> 201", inv1.status === 201, inv1.text);
+const iv = inv1.json?.data;
+check("queda timbrada con folio fiscal (UUID del SAT)", iv?.status === "issued" && /^[0-9a-f-]{36}$/i.test(iv?.uuid ?? ""), JSON.stringify(iv)?.slice(0, 300));
+check("los importes salen del pedido: subtotal 200.00, IVA 32.00, total 232.00", iv?.subtotalCents === 20000 && iv?.ivaCents === 3200 && iv?.totalCents === 23200, `${iv?.subtotalCents}/${iv?.ivaCents}/${iv?.totalCents}`);
+check("el IVA por concepto suma el IVA del pedido", iv?.concepts?.reduce((s, c) => s + c.taxCents, 0) === iv?.ivaCents, JSON.stringify(iv?.concepts));
+check("receptor con los datos fiscales del perfil", iv?.receptor?.rfc === fiscal.rfc && iv.receptor.postalCode === fiscal.postalCode, JSON.stringify(iv?.receptor));
+check("trae sellos y código QR para la representación impresa", !!iv?.selloSat && !!iv?.qrBase64 && iv?.emisor?.rfc, JSON.stringify(Object.keys(iv ?? {})));
+check("un pedido no se factura dos veces -> 409", (await call("POST", "/api/v1/invoices", { token: ana.token, body: { orderId: ol.id } })).status === 409);
+
+const mine = await call("GET", "/api/v1/invoices", { token: ana.token });
+check("el cliente ve SUS facturas", mine.json?.data?.some((i) => i.id === iv?.id), mine.text);
+check("otro cliente no ve facturas ajenas", !(await call("GET", "/api/v1/invoices", { token: beto.token })).json?.data?.some((i) => i.id === iv?.id));
+check("ni las consulta por id -> 404", (await call("GET", `/api/v1/invoices/${iv?.id}`, { token: beto.token })).status === 404);
+check("el cajero ve todas las facturas", (await call("GET", "/api/v1/invoices", { token: tokens.cashier })).json?.data?.some((i) => i.id === iv?.id));
+check("filtro por estado inválido -> 422", (await call("GET", "/api/v1/invoices?status=basura", { token: tokens.cashier })).status === 422);
+
+const invXml = await call("GET", `/api/v1/invoices/${iv?.id}/xml`, { token: ana.token });
+check("descarga el XML timbrado (CFDI 4.0 con TimbreFiscalDigital)", invXml.status === 200 && invXml.text.includes('Version="4.0"') && invXml.text.includes("TimbreFiscalDigital") && invXml.text.includes(iv?.uuid), invXml.text.slice(0, 200));
+check("el XML ajeno no se descarga -> 404", (await call("GET", `/api/v1/invoices/${iv?.id}/xml`, { token: beto.token })).status === 404);
+
+const invIssuedNote = await eventually(async () => (await call("GET", "/api/v1/notifications/mine", { token: ana.token })).json?.data?.find((n) => n.type === "invoice.issued"));
+check("el cliente recibe el aviso de su factura con el folio fiscal", !!invIssuedNote && invIssuedNote.body.includes(iv?.uuid), invIssuedNote?.body);
+
+// Con datos fiscales guardados, Beto factura su consumo de mostrador; el cajero también puede hacerlo por un cliente.
+await call("PUT", "/api/v1/customers/me", { token: beto.token, body: { fullName: `Beto Ruiz ${sfx}`, phone: "5587654321", billing: fiscal } });
+const inv2 = await call("POST", "/api/v1/invoices", { token: tokens.cashier, body: { orderId: o.id } });
+check("el cajero factura el consumo de un cliente registrado -> 201", inv2.status === 201 && inv2.json?.data?.receptor?.rfc === fiscal.rfc, inv2.text);
+
+console.log("FACTURACIÓN · cancelación ante el SAT");
+check("el cajero no cancela -> 403", (await call("POST", `/api/v1/invoices/${iv?.id}/cancel`, { token: tokens.cashier, body: { reason: "02" } })).status === 403);
+check("el cliente no cancela -> 403", (await call("POST", `/api/v1/invoices/${iv?.id}/cancel`, { token: ana.token, body: { reason: "02" } })).status === 403);
+check("el motivo 01 exige la factura sustituta -> 422", (await call("POST", `/api/v1/invoices/${iv?.id}/cancel`, { token: tokens.manager, body: { reason: "01" } })).status === 422);
+check("motivo fuera de catálogo -> 422", (await call("POST", `/api/v1/invoices/${iv?.id}/cancel`, { token: tokens.manager, body: { reason: "09" } })).status === 422);
+// El SAT de pruebas tarda unos minutos en registrar un comprobante recién timbrado y hasta entonces no deja
+// cancelarlo (el servicio responde 409 "de nuevo en unos minutos"). Se reintenta hasta ~4 min; si aun así no
+// lo acepta, esas comprobaciones se reportan como OMITIDAS (no como éxito ni como fallo).
+let cancelled = null;
+for (let attempt = 0; attempt < 13; attempt++) {
+  cancelled = await call("POST", `/api/v1/invoices/${iv?.id}/cancel`, { token: tokens.manager, body: { reason: "02" } });
+  if (cancelled.status !== 409 || !/de nuevo en unos minutos/.test(cancelled.text)) break;
+  if (attempt === 0) console.log("  ..   el SAT aún registra la factura recién timbrada; reintentando la cancelación (hasta ~4 min)");
+  await new Promise((r) => setTimeout(r, 20_000));
+}
+const satReady = cancelled?.status !== 409 || !/de nuevo en unos minutos/.test(cancelled.text);
+if (satReady) {
+  check("el gerente cancela con motivo 02 -> 200", cancelled.status === 200 && cancelled.json?.data?.status === "cancelled", cancelled.text);
+  check("no se cancela dos veces -> 409", (await call("POST", `/api/v1/invoices/${iv?.id}/cancel`, { token: tokens.manager, body: { reason: "02" } })).status === 409);
+  const invCancelNote = await eventually(async () => (await call("GET", "/api/v1/notifications/mine", { token: ana.token })).json?.data?.find((n) => n.type === "invoice.cancelled"));
+  check("el cliente recibe el aviso de cancelación", !!invCancelNote, "no llegó");
+  check("la cancelación quedó en la auditoría", (await eventually(async () => (await call("GET", "/api/v1/audit?action=invoices.cancel&limit=20", { token: tokens.manager })).json?.data?.some((e) => e.resourceId === iv?.id))) === true);
+} else {
+  console.log("  OMIT cancelación, aviso y auditoría: el SAT de pruebas no registró la factura a tiempo (reintenta el smoke)");
+}
+
+// Cancelada, el consumo se puede volver a facturar; esta vez por el botón de Telegram (ruta interna del bot).
+if (satReady) {
+  const viaBot = await call("POST", "/api/v1/internal/invoices/telegram", { base: BILLING_DIRECT, headers: internal, body: { chatId, orderId: ol.id } });
+  check("el bot de Telegram vuelve a facturar el consumo cancelado -> 201", viaBot.status === 201 && viaBot.json?.data?.status === "issued" && viaBot.json.data.folio !== iv?.folio, viaBot.text);
+}
+check("un chat no vinculado no factura -> 404", (await call("POST", "/api/v1/internal/invoices/telegram", { base: BILLING_DIRECT, headers: internal, body: { chatId: "1", orderId: ol.id } })).status === 404);
+check("la ruta interna del bot exige la llave -> 401", (await call("POST", "/api/v1/internal/invoices/telegram", { base: BILLING_DIRECT, token: admin, body: { chatId, orderId: ol.id } })).status === 401);
+check("el gateway no publica la ruta interna de facturación (404)", (await call("POST", "/api/v1/internal/invoices/telegram", { token: admin, body: { chatId, orderId: ol.id } })).status === 404);
 
 // ---------------------------------------------------------------- aislamiento de rutas internas
 

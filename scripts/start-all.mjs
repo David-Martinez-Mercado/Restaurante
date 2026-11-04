@@ -1,4 +1,4 @@
-// Arranca todo el sistema (10 procesos) UNO POR UNO, esperando a que cada servicio responda
+// Arranca todo el sistema (12 procesos) UNO POR UNO, esperando a que cada servicio responda
 // antes de lanzar el siguiente. Evita el pico de memoria de arrancar todo a la vez, que en
 // equipos con poca RAM tumbaba los procesos.
 // Usa `node` directo (sin npm ni shell): menos procesos intermedios, menos memoria.
@@ -59,6 +59,7 @@ const SERVICES = [
       ]
     : []),
   tsxService("payroll", "services/payroll", 90, 3010),
+  tsxService("billing", "services/billing", 95, 3011),
   {
     name: "gateway",
     color: 36,

@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { get, post } from "../api";
+import { InvoiceModal } from "../invoice/InvoiceModal";
 import {
   ORDER_STATUS_LABEL,
   PAYMENT_METHOD_LABEL,
   PAYMENT_STATUS_LABEL,
+  type CustomerDTO,
+  type InvoiceDTO,
   type OrderDTO,
   type OrderStatus,
   type PaymentDTO,
@@ -148,13 +151,47 @@ function PaymentReturn({ paymentId, onDismiss, onSettled }: { paymentId: string;
   );
 }
 
-export function MyOrders({ returnPaymentId, onDismissReturn }: { returnPaymentId: string | null; onDismissReturn: () => void }) {
+export function MyOrders({
+  profile,
+  returnPaymentId,
+  onDismissReturn,
+  onGoProfile,
+}: {
+  profile: CustomerDTO | null;
+  returnPaymentId: string | null;
+  onDismissReturn: () => void;
+  onGoProfile: () => void;
+}) {
   const toast = useToast();
   const orders = useLoad(() => get<{ data: OrderDTO[] }>("/orders/mine").then((r) => r.data), [], 5000);
   const payments = useLoad(() => get<{ data: PaymentDTO[] }>("/payments/mine").then((r) => r.data), [], 5000);
+  const invoices = useLoad(() => get<{ data: InvoiceDTO[] }>("/invoices").then((r) => r.data), [], 15000);
   const [paying, setPaying] = useState<OrderDTO | null>(null);
+  const [viewing, setViewing] = useState<string | null>(null);
+  const [invoicing, setInvoicing] = useState<string | null>(null);
 
   const latestPayment = (orderId: string) => (payments.data ?? []).find((p) => p.orderId === orderId);
+  // Una factura cancelada deja el pedido libre para facturarlo otra vez; una rechazada, también.
+  const invoiceOf = (orderId: string) => (invoices.data ?? []).find((i) => i.orderId === orderId && i.status === "issued");
+
+  async function issue(order: OrderDTO) {
+    if (!profile?.billing) {
+      toast("Primero guarda tus datos fiscales en Mi perfil", "error");
+      onGoProfile();
+      return;
+    }
+    setInvoicing(order.id);
+    try {
+      const created = (await post<{ data: InvoiceDTO }>("/invoices", { orderId: order.id })).data;
+      toast(`Factura ${created.serie}-${created.folio} emitida`);
+      await invoices.reload(true);
+      setViewing(created.id);
+    } catch (err) {
+      toast(errorMessage(err), "error");
+    } finally {
+      setInvoicing(null);
+    }
+  }
 
   return (
     <>
@@ -182,6 +219,7 @@ export function MyOrders({ returnPaymentId, onDismissReturn }: { returnPaymentId
         {orders.data?.map((o) => {
           const pay = latestPayment(o.id);
           const canPay = !o.paidAt && o.status !== "cancelled" && o.status !== "paid";
+          const invoice = invoiceOf(o.id);
           return (
             <article key={o.id} className={`card order ${o.status === "ready" ? "order-ready" : ""}`}>
               <div className="order-top">
@@ -222,11 +260,26 @@ export function MyOrders({ returnPaymentId, onDismissReturn }: { returnPaymentId
                     Pagar en línea
                   </button>
                 )}
+                {o.status === "paid" && invoice && (
+                  <>
+                    <Badge tone="ok">Facturado {invoice.serie}-{invoice.folio}</Badge>
+                    <button className="small-btn" onClick={() => setViewing(invoice.id)}>
+                      Ver factura
+                    </button>
+                  </>
+                )}
+                {o.status === "paid" && !invoice && invoices.data && (
+                  <button className="small-btn" disabled={invoicing === o.id} onClick={() => void issue(o)}>
+                    {invoicing === o.id ? "Timbrando…" : "Facturar"}
+                  </button>
+                )}
               </div>
             </article>
           );
         })}
       </div>
+
+      {viewing && <InvoiceModal invoiceId={viewing} onClose={() => setViewing(null)} />}
 
       {paying && (
         <PayModal

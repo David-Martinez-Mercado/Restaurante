@@ -23,6 +23,7 @@ const targets = [
   "services/payment",
   "services/attendance",
   "services/payroll",
+  "services/billing",
   "gateway",
 ];
 

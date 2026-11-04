@@ -65,6 +65,7 @@ rem --- 5. Prisma (solo si es la primera vez o si se pide: iniciar.bat --db) ---
 set "HACER_DB="
 if not exist "services\payroll\src\generated" set "HACER_DB=1"
 if not exist "services\attendance\src\generated" set "HACER_DB=1"
+if not exist "services\billing\src\generated" set "HACER_DB=1"
 if /i "%~1"=="--db" set "HACER_DB=1"
 if defined HACER_DB (
   echo [4/5] Preparando la base de datos ^(Prisma^)...

@@ -12,6 +12,7 @@ const envSchema = z.object({
     .transform((val) => val.split(",").map((s) => s.trim())),
   CUSTOMER_SERVICE_URL: z.string().url().default("http://localhost:3008"),
   RESERVATION_SERVICE_URL: z.string().url().default("http://localhost:3007"),
+  BILLING_SERVICE_URL: z.string().url().default("http://localhost:3011"),
   /** Vacío = modo simulado (no se contacta a Telegram). */
   TELEGRAM_BOT_TOKEN: z
     .string()

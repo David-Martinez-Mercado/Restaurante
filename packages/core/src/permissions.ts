@@ -46,6 +46,11 @@ export const PERMISSIONS = [
   "payroll:approve",
   "tax:calculate",
   "tax:report",
+  "invoices:create",
+  "invoices:read-own",
+  "invoices:read-all",
+  "invoices:issue",
+  "invoices:cancel",
   "audit:read",
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
@@ -83,6 +88,9 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "payroll:calculate",
     "tax:calculate",
     "tax:report",
+    "invoices:read-all",
+    "invoices:issue",
+    "invoices:cancel",
     "audit:read",
   ],
   waiter: [
@@ -122,6 +130,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "payroll:read-own",
     "tax:calculate",
     "tax:report",
+    "invoices:read-all",
+    "invoices:issue",
   ],
   customer: [
     "dishes:read",
@@ -133,6 +143,8 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
     "reservations:create",
     "reservations:read-own",
     "notifications:read-own",
+    "invoices:create",
+    "invoices:read-own",
   ],
 };
 

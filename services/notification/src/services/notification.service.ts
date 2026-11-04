@@ -42,15 +42,16 @@ interface Delivery {
 async function resolveChat(
   event: NotificationEvent,
   userId: string | null
-): Promise<{ chatId: string } | { reason: string }> {
+): Promise<{ chatId: string; canInvoice: boolean } | { reason: string }> {
   // Las reservaciones hechas por el bot traen su chat: se avisa ahí aunque no haya cuenta.
   const direct = "telegramChatId" in event ? event.telegramChatId : undefined;
-  if (direct) return { chatId: direct };
+  if (direct) return { chatId: direct, canInvoice: false };
   if (!userId) return { reason: "Sin cuenta ni Telegram a quien avisar" };
 
   try {
     const profile = await customerClient.getByUser(userId);
-    if (profile?.telegramChatId) return { chatId: profile.telegramChatId };
+    // Con datos fiscales guardados, el aviso de consumo pagado lleva el botón "Facturar".
+    if (profile?.telegramChatId) return { chatId: profile.telegramChatId, canInvoice: profile.billing !== null };
     return { reason: "El cliente no ha vinculado Telegram" };
   } catch {
     return { reason: "No se pudo consultar el perfil del cliente" };
@@ -94,7 +95,12 @@ export const notificationService = {
       let delivery: Delivery;
 
       if ("chatId" in target) {
-        const sent = await telegram.send(target.chatId, toTelegramHtml(message));
+        const buttons =
+          event.type === "order.paid" && target.canInvoice
+            ? [[{ text: "🧾 Sí, facturar este consumo", callback_data: `f:${event.orderId}` }]]
+            : undefined;
+        const html = toTelegramHtml(message);
+        const sent = buttons ? await telegram.send(target.chatId, html, { buttons }) : await telegram.send(target.chatId, html);
         delivery = { channel: "telegram", delivery: sent.status, recipientChatId: target.chatId, error: sent.error ?? null };
       } else {
         delivery = { channel: "telegram", delivery: "skipped", recipientChatId: null, error: target.reason };

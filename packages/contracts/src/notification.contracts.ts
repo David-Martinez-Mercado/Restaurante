@@ -22,6 +22,16 @@ const orderRef = {
   customerUserId: z.string().uuid(),
 };
 
+const invoiceRef = {
+  invoiceId: z.string().uuid(),
+  orderId: z.string().uuid(),
+  orderCode: z.string().min(1).max(20),
+  customerUserId: z.string().uuid(),
+  /** Serie y folio, p. ej. "A-12". */
+  folio: z.string().min(1).max(40),
+  uuid: z.string().min(1).max(60),
+};
+
 const reservationRef = {
   reservationId: z.string().uuid(),
   code: z.string().min(1).max(20),
@@ -59,6 +69,10 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
   /** Ya casi es la hora de llegada de la reservación. */
   z.object({ type: z.literal("reservation.reminder"), ...reservationRef }),
   z.object({ type: z.literal("reservation.cancelled"), ...reservationRef }),
+  /** La factura (CFDI) del consumo ya está timbrada. */
+  z.object({ type: z.literal("invoice.issued"), ...invoiceRef, totalCents: z.number().int() }),
+  /** La factura fue cancelada ante el SAT. */
+  z.object({ type: z.literal("invoice.cancelled"), ...invoiceRef }),
 ]);
 export type NotificationEvent = z.infer<typeof notificationEventSchema>;
 export type NotificationEventType = NotificationEvent["type"];

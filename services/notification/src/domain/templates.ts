@@ -63,7 +63,7 @@ export function renderMessage(event: NotificationEvent, ctx: RenderContext): Mes
           `Total: ${formatMoney(event.totalCents)}`,
           `Método de pago: ${paymentLabel(event.paymentMethod)}`,
           "",
-          "¿Vas a facturar? Si es así, ten a la mano tus datos fiscales (puedes guardarlos en Mi perfil) y pídenos tu factura.",
+          "¿Vas a facturar? Si ya guardaste tus datos fiscales en Mi perfil, pide tu factura en Mis pedidos → Facturar (o con el botón de Telegram).",
         ].join("\n"),
       };
     }
@@ -93,6 +93,20 @@ export function renderMessage(event: NotificationEvent, ctx: RenderContext): Mes
       };
     }
 
+    case "invoice.issued":
+      return {
+        title: "Tu factura está lista",
+        body:
+          `Facturamos tu consumo del pedido ${event.orderCode} por ${formatMoney(event.totalCents)}. ` +
+          `Factura ${event.folio} · folio fiscal ${event.uuid}. Descarga el XML o imprímela en Mis pedidos → Ver factura.`,
+      };
+
+    case "invoice.cancelled":
+      return {
+        title: "Factura cancelada",
+        body: `La factura ${event.folio} del pedido ${event.orderCode} (folio fiscal ${event.uuid}) fue cancelada ante el SAT.`,
+      };
+
     case "reservation.cancelled":
       return {
         title: "Reservación cancelada",
@@ -111,6 +125,11 @@ export const toTelegramHtml = (m: Message): string => `<b>${escapeHtml(m.title)}
 
 /** Llave de deduplicación: un solo aviso de cada tipo por entidad y canal. */
 export function dedupeKey(event: NotificationEvent, channel: string): string {
-  const entity = event.type.startsWith("reservation.") ? (event as { reservationId: string }).reservationId : (event as { orderId: string }).orderId;
+  // Un pedido puede tener varias facturas a lo largo del tiempo (emitir, cancelar, volver a emitir): se avisa por cada una.
+  const entity = event.type.startsWith("reservation.")
+    ? (event as { reservationId: string }).reservationId
+    : event.type.startsWith("invoice.")
+      ? (event as { invoiceId: string }).invoiceId
+      : (event as { orderId: string }).orderId;
   return `${event.type}:${entity}:${channel}`;
 }

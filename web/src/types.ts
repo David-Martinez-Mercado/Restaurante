@@ -14,6 +14,9 @@ export type {
   EngineSnapshotDTO,
   EngineTransactionDTO,
   GatewayChargeRequest,
+  InvoiceConceptDTO,
+  InvoiceDTO,
+  InvoiceDetailDTO,
   NotificationDTO,
   OrderDTO,
   OrderItemDTO,
@@ -31,8 +34,10 @@ export type {
   TelegramLinkCodeDTO,
   UserPublicDTO,
   BillingInput,
+  CancelReason,
   DeliveryStatus,
   DishCategory,
+  InvoiceStatus,
   NotificationChannel,
   NotificationEventType,
   OrderStatus,
@@ -44,8 +49,10 @@ export type {
 export type { Permission, Role } from "@resto/core";
 
 import type {
+  CancelReason,
   DeliveryStatus,
   DishCategory,
+  InvoiceStatus,
   NotificationChannel,
   OrderStatus,
   PaymentMethod,
@@ -121,6 +128,20 @@ export const DELIVERY_LABEL: Record<DeliveryStatus, string> = {
   simulated: "Simulado",
   failed: "Falló",
   skipped: "Omitido",
+};
+
+export const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
+  pending: "Timbrando",
+  issued: "Vigente",
+  cancelled: "Cancelada",
+  rejected: "Rechazada",
+};
+
+export const CANCEL_REASON_LABEL: Record<CancelReason, string> = {
+  "01": "01 · Emitida con errores, con relación (la sustituye otra factura)",
+  "02": "02 · Emitida con errores, sin relación",
+  "03": "03 · No se llevó a cabo la operación",
+  "04": "04 · Operación nominativa relacionada en una factura global",
 };
 
 export const TAX_RATE = 0.16;

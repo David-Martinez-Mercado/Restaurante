@@ -121,6 +121,23 @@ export async function api<T = unknown>(method: string, path: string, body?: unkn
   return (await res.json()) as T;
 }
 
+/** Pide un archivo con el token (un enlace normal no lo manda) y lo ofrece como descarga. */
+export async function downloadFile(path: string, fallbackName: string): Promise<void> {
+  let res = await send("GET", path);
+  if (res.status === 401 && tokens && (await refreshAccessToken())) res = await send("GET", path);
+  if (!res.ok) throw await toError(res);
+
+  const name = (res.headers.get("content-disposition") ?? "").match(/filename="?([^";]+)"?/)?.[1] ?? fallbackName;
+  const url = URL.createObjectURL(await res.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 export const get = <T>(path: string) => api<T>("GET", path);
 export const post = <T>(path: string, body?: unknown) => api<T>("POST", path, body ?? {});
 export const put = <T>(path: string, body: unknown) => api<T>("PUT", path, body);

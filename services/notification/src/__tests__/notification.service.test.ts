@@ -174,6 +174,41 @@ describe("dispatch · resumen del consumo", () => {
   });
 });
 
+describe("dispatch · botón Facturar", () => {
+  const paid: Event = {
+    type: "order.paid", orderId: ORDER, orderCode: "A-0042", customerUserId: USER,
+    items: [{ name: "Tacos", quantity: 1, lineTotalCents: 10000 }],
+    subtotalCents: 10000, taxCents: 1600, totalCents: 11600, paymentMethod: "card", channel: "dine_in",
+  };
+  const withBilling = { ...(profile("777") as object), billing: { rfc: "XIA190128J61" } } as never;
+
+  it("con datos fiscales guardados, el resumen del consumo lleva el botón 'Sí, facturar'", async () => {
+    vi.mocked(customerClient.getByUser).mockResolvedValue(withBilling);
+
+    await notificationService.dispatch(paid);
+
+    expect(telegram.send).toHaveBeenCalledWith("777", expect.any(String), {
+      buttons: [[expect.objectContaining({ callback_data: `f:${ORDER}` })]],
+    });
+  });
+
+  it("sin datos fiscales no hay botón", async () => {
+    vi.mocked(customerClient.getByUser).mockResolvedValue(profile("777"));
+
+    await notificationService.dispatch(paid);
+
+    expect(telegram.send).toHaveBeenCalledWith("777", expect.any(String));
+  });
+
+  it("otros avisos nunca llevan el botón, aunque haya datos fiscales", async () => {
+    vi.mocked(customerClient.getByUser).mockResolvedValue(withBilling);
+
+    await notificationService.dispatch(ready);
+
+    expect(telegram.send).toHaveBeenCalledWith("777", expect.any(String));
+  });
+});
+
 describe("campana del cliente", () => {
   it("no expone destinatario ni error a quien lee sus propios avisos", async () => {
     vi.mocked(notificationRepository.findMine).mockResolvedValue([

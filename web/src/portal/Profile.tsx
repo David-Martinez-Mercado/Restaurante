@@ -187,7 +187,11 @@ export function Profile({ profile, reload }: { profile: CustomerDTO | null; relo
                 Uso de CFDI
                 <input value={billing.cfdiUse} onChange={(e) => setB("cfdiUse", e.target.value.toUpperCase())} placeholder="G03" maxLength={3} required />
               </label>
-              <p className="hint">Al terminar tu consumo te preguntaremos si vas a facturar; con esto ya tendremos lo necesario.</p>
+              <p className="hint">
+                Al terminar tu consumo podrás facturar desde Mis pedidos o con el botón de Telegram. Escribe los datos exactamente como aparecen en tu
+                Constancia de Situación Fiscal (nombre o razón social sin el régimen societario, código postal y régimen): el SAT rechaza la factura si
+                no coinciden. Tienes hasta el último día del mes de tu consumo.
+              </p>
             </>
           )}
 

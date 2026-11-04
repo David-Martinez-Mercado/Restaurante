@@ -32,6 +32,7 @@ export class ProxyController {
       payment: this.config.PAYMENT_SERVICE_URL,
       attendance: this.config.ATTENDANCE_SERVICE_URL,
       payroll: this.config.PAYROLL_SERVICE_URL,
+      billing: this.config.BILLING_SERVICE_URL,
     };
     return urls[service].replace(/\/$/, "");
   }

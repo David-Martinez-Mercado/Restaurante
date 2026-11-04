@@ -12,7 +12,8 @@ export type ServiceName =
   | "notification"
   | "payment"
   | "attendance"
-  | "payroll";
+  | "payroll"
+  | "billing";
 
 export interface UpstreamRule {
   prefix: string;
@@ -38,6 +39,7 @@ export const ROUTES: UpstreamRule[] = [
   { prefix: "/api/v1/tax", service: "order" },
   { prefix: "/api/v1/attendance", service: "attendance" },
   { prefix: "/api/v1/payroll", service: "payroll" },
+  { prefix: "/api/v1/invoices", service: "billing" },
   // La ingesta de auditoría es solo interna: desde afuera solo se consulta.
   { prefix: "/api/v1/audit", service: "audit", methods: ["GET"] },
 ];

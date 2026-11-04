@@ -36,7 +36,7 @@ npm install
 #    levanta PostgreSQL en Docker, genera los clientes de base de datos y crea las tablas.
 npm run setup:all
 
-# 3. Arrancar el sistema completo (gateway + 10 servicios + motor de nómina + front), escalonado
+# 3. Arrancar el sistema completo (gateway + 11 servicios + motor de nómina + front), escalonado
 npm start
 ```
 
@@ -53,7 +53,7 @@ Para detener: `Ctrl + C` en la terminal de `npm start`. Para apagar la base de d
 (los datos se conservan; para borrarlos: `docker compose down -v`).
 
 > Comprobación rápida: `http://localhost:3000/api/v1/gateway/health` debe responder
-> `{"status":"ok","services":{"user":"up","menu":"up","order":"up","audit":"up","customer":"up","reservation":"up","notification":"up","payment":"up","attendance":"up","payroll":"up"}}`.
+> `{"status":"ok","services":{"user":"up","menu":"up","order":"up","audit":"up","customer":"up","reservation":"up","notification":"up","payment":"up","attendance":"up","payroll":"up","billing":"up"}}`.
 
 > **Atajo en Windows:** doble clic en **`iniciar.bat`** hace todo lo anterior (abre Docker si hace falta, prepara y arranca). `cargar-datos.bat` carga la demostración y `detener.bat` apaga todo.
 
@@ -98,6 +98,11 @@ El administrador inicial sale de `BOOTSTRAP_ADMIN_*` en `services/user/.env`.
 4. **Admin** → *Nómina* → **Aprobar** (el gerente que calculó no puede aprobar). Ahora cada trabajador ve su recibo en *Checador*.
 5. **Cajero/gerente** → *IVA*: **agrega** o **desglosa** el IVA de un monto (16 %, 8 % o 0 %) y consulta el **IVA trasladado** de los pedidos pagados.
 
+### Facturación (≈ 3 min)
+1. **Cliente** (`cliente.demo`) → *Mis pedidos* → en un pedido pagado pulsa **Facturar**: se timbra un CFDI 4.0 con Profact (ambiente de pruebas) y se abre la factura con folio fiscal, sellos y QR. **Imprimir** o **Descargar XML**.
+2. Si el cliente no ha guardado sus datos fiscales, el botón lo manda a *Mi perfil*. Con Telegram vinculado, el resumen del consumo trae el botón **Sí, facturar**.
+3. **Gerente/cajero** → *Facturas*: lista, **Ver**, y **Facturar un consumo** por un cliente registrado. Solo gerencia **Cancela** (motivo 01–04 ante el SAT).
+
 ## 4. Arquitectura
 
 ```
@@ -134,6 +139,7 @@ Navegador ──► Front React :5173  (panel del personal  ·  portal del clien
 | **Customer** | 3008 | Express + Prisma | Perfil del cliente, datos fiscales y vínculo con Telegram |
 | **Attendance** | 3009 | Express + Prisma | **Checador**: entradas/salidas, horas, horas extra y faltas; correcciones del gerente con motivo |
 | **Payroll** | 3010 | Express + Prisma | **Nómina**: sueldos, cálculo con el motor externo, aprobación y recibos |
+| **Billing** | 3011 | Express + Prisma | **Facturación CFDI 4.0**: timbra con el PAC **Profact**, guarda el XML, cancela ante el SAT (ver [docs/FACTURACION-PROFACT.md](docs/FACTURACION-PROFACT.md)) |
 | SistemaNomina *(externo)* | 3102–3104 | Express + SQLite | Repo de otro autor, sin modificar: calcula ISR, IMSS, Infonavit y neto. Solo 127.0.0.1 |
 | PostgreSQL | 5432 | Docker | Un esquema por servicio (`user_service`, `menu_service`, …) |
 
@@ -219,6 +225,9 @@ node scripts/fake-gateway.mjs     # pasarela falsa en :4100
 | payroll:read-own (mi recibo) | ✔ | ✔ | ✔ | ✔ | ✔ | |
 | payroll:read-all · payroll:manage (sueldos) · payroll:calculate | ✔ | ✔ | | | | |
 | payroll:approve | ✔ | | | | | |
+| invoices:create · invoices:read-own (facturar y ver mis facturas) | ✔ | | | | | ✔ |
+| invoices:read-all · invoices:issue (facturar por un cliente) | ✔ | ✔ | | | ✔ | |
+| invoices:cancel (ante el SAT) | ✔ | ✔ | | | | |
 | tax:calculate · tax:report | ✔ | ✔ | | | ✔ | |
 | audit:read | ✔ | ✔ | | | | |
 
@@ -264,6 +273,18 @@ node scripts/fake-gateway.mjs     # pasarela falsa en :4100
 | Recibos | Cada trabajador ve solo los suyos, y solo de nóminas aprobadas |
 | Calculadora de IVA | Agrega o desglosa IVA (16 %, 8 %, 0 %) en centavos enteros: base + IVA = total siempre. Reporte de IVA trasladado de pedidos pagados |
 
+**Facturación** (detalle en [docs/FACTURACION-PROFACT.md](docs/FACTURACION-PROFACT.md))
+
+| Regla | Detalle |
+|---|---|
+| Quién factura | El cliente su propio consumo pagado (Mis pedidos → *Facturar*, o el botón de Telegram); caja y gerencia pueden hacerlo por un cliente registrado |
+| Datos | Los fiscales salen del perfil del cliente y los importes, del pedido: quien pide la factura no puede alterarlos |
+| Plazo | Solo dentro del mes en que se consumió (hora de México) |
+| Una por pedido | Un pedido tiene a lo sumo una factura vigente; si se cancela, se puede facturar de nuevo. Una factura rechazada por el SAT se corrige y se reintenta |
+| IVA | El IVA de cada concepto se reparte para que la suma sea exactamente el IVA del pedido |
+| Cancelar | Solo gerencia/administración, con motivo del SAT (01–04); el 01 exige la factura que la sustituye |
+| Sin llaves | El sistema nunca guarda el certificado (CSD): Profact sella con el que se le registró una vez |
+
 ## 9. API (todo a través del gateway, puerto 3000)
 
 | Método y ruta | Permiso |
@@ -286,19 +307,21 @@ node scripts/fake-gateway.mjs     # pasarela falsa en :4100
 | `GET /payroll/compensations` · `GET /payroll/runs` · `GET /payroll/runs/:period` · `GET /payroll/engine` · `/engine/transactions` · `/engine/data` | `payroll:read-all` |
 | `PUT /payroll/compensations/:userId` | `payroll:manage` |
 | `POST /payroll/runs` (calcular) · `POST /payroll/runs/:period/approve` | `payroll:calculate` / `payroll:approve` |
+| `POST /invoices` (`{orderId}`) · `GET /invoices?status=&orderId=` · `GET /invoices/:id` · `GET /invoices/:id/xml` | `invoices:create`/`issue` · `invoices:read-own`/`read-all` |
+| `POST /invoices/:id/cancel` (`{reason, replacementInvoiceId?}`) | `invoices:cancel` |
 | `POST /tax/calculate` · `GET /tax/report?from=&to=` | `tax:calculate` / `tax:report` |
 | `GET /audit` · `GET /audit/summary` | `audit:read` |
 
 ## 10. Pruebas
 
 ```bash
-npm test          # 421 pruebas unitarias de todos los workspaces (no necesitan base de datos)
-npm run smoke     # 229 comprobaciones de extremo a extremo; requiere el sistema en marcha (npm start)
+npm test          # 509 pruebas unitarias de todos los workspaces (no necesitan base de datos)
+npm run smoke     # 262 comprobaciones de extremo a extremo; requiere el sistema en marcha (npm start)
 ```
 
 `npm run smoke` crea sus propios datos y se puede repetir las veces que se quiera. Cubre autenticación, autorización,
 pedidos (mesa y en línea), aviso de "listo", pago con webhook firmado (firma inválida, importe alterado, duplicado), resumen de consumo,
-Telegram simulado, reservaciones, calculadora de IVA, checador, una **nómina calculada por el motor externo** (sin duplicar incidencias al recalcular) y auditoría.
+Telegram simulado, reservaciones, calculadora de IVA, checador, una **nómina calculada por el motor externo** (sin duplicar incidencias al recalcular), la **facturación CFDI con Profact** (timbrado real en el ambiente de pruebas, XML, cancelación y botón de Telegram) y auditoría.
 
 ## 11. Problemas comunes
 
@@ -328,11 +351,11 @@ Telegram simulado, reservaciones, calculadora de IVA, checador, una **nómina ca
 ```
 Restaurante/
 ├─ packages/            código compartido: core (errores, roles, permisos), auth (JWT), http (middlewares, eventos), contracts (esquemas Zod)
-├─ services/            user · menu · order · audit · customer · reservation · notification · payment · attendance · payroll
+├─ services/            user · menu · order · audit · customer · reservation · notification · payment · attendance · payroll · billing
 ├─ gateway/             API Gateway (NestJS)
 ├─ web/                 front (React + Vite): src/views (personal) · src/portal (cliente)
 ├─ integraciones/       SistemaNomina/ (submódulo: repo de otro autor, SIN modificar) · nomina-externo.cjs (lanzador nuestro)
-├─ docs/                CONTRATO-PASARELA-DE-PAGO.md · INTEGRACION-NOMINA.md
+├─ docs/                CONTRATO-PASARELA-DE-PAGO.md · INTEGRACION-NOMINA.md · FACTURACION-PROFACT.md
 ├─ scripts/             setup · setup:nomina · seed · smoke · start-all (arranque escalonado) · fake-gateway · menu-data
 ├─ iniciar.bat          arranca todo (Windows) · cargar-datos.bat carga la demostración
 ├─ docker-compose.yml   PostgreSQL

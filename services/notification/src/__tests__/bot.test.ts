@@ -6,6 +6,7 @@ process.env.INTERNAL_API_KEY = "test-internal-key-min-16-chars";
 
 const { Bot } = await import("../telegram/bot.js");
 const { ReservationRejected, ReservationUnavailable } = await import("../clients/reservation.client.js");
+const { InvoiceRejected, InvoiceUnavailable } = await import("../clients/invoice.client.js");
 type Deps = ConstructorParameters<typeof Bot>[0];
 type Update = import("../telegram/telegram.api.js").TelegramUpdate;
 
@@ -30,6 +31,7 @@ function setup() {
       upcoming: vi.fn().mockResolvedValue([]),
       cancel: vi.fn().mockResolvedValue(reservation({ status: "cancelled" })),
     },
+    invoices: { issue: vi.fn().mockResolvedValue({ serie: "A", folio: 7, uuid: "UUID-1" }) },
     timeZone: TZ,
     now: () => clock,
   };
@@ -301,5 +303,34 @@ describe("mensajes que no entiende", () => {
     const { deps, bot, text } = setup();
     deps.api.send.mockRejectedValue(new Error("red caída"));
     await expect(bot.handle(text("/ayuda"))).resolves.toBeUndefined();
+  });
+});
+
+describe("facturar desde el botón del resumen", () => {
+  it("pide la factura con el chat y el pedido, y avisa el folio", async () => {
+    const { deps, bot, press, last } = setup();
+
+    await bot.handle(press("f:order-1"));
+
+    expect(deps.invoices.issue).toHaveBeenCalledWith(CHAT, "order-1");
+    expect(last().text).toContain("A-7");
+  });
+
+  it("muestra el motivo cuando la factura se rechaza (plazo, datos fiscales, SAT)", async () => {
+    const { deps, bot, press, last } = setup();
+    deps.invoices.issue.mockRejectedValue(new InvoiceRejected(422, "Ya pasó el mes de consumo"));
+
+    await bot.handle(press("f:order-1"));
+
+    expect(last().text).toContain("Ya pasó el mes de consumo");
+  });
+
+  it("si el servicio de facturación no responde, lo dice sin mostrar errores técnicos", async () => {
+    const { deps, bot, press, last } = setup();
+    deps.invoices.issue.mockRejectedValue(new InvoiceUnavailable());
+
+    await bot.handle(press("f:order-1"));
+
+    expect(last().text).toContain("no está disponible");
   });
 });
